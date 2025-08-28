@@ -35,6 +35,69 @@
             margin-left: auto;
         }
 
+        .barcode-list {
+            margin-top: 20px;
+            text-align: left;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .barcode-list h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .barcode-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .js-barcode-value {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
+        .js-copy-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .js-copy-btn:hover {
+            background-color: #218838;
+        }
+
+        .js-copy-btn.copied {
+            background-color: #6c757d;
+        }
+
+        .clear-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .clear-btn:hover {
+            background-color: #c82333;
+        }
+
     </style>
 </head>
 <body>
@@ -46,6 +109,17 @@
     <button id="switchCamera">Switch Camera</button>
 </div>
 
+<div class="barcode-list">
+    <h3>Scanned Barcodes <span id="clearList" class="clear-btn" hidden="hidden">Clear List</span></h3>
+    <div id="barcodeList"></div>
+</div>
+
+<template id="barcodeItemTemplate" class="js-barcode-item-template">
+    <div class="barcode-item">
+        <span class="js-barcode-value"></span>
+        <button class="js-copy-btn">Copy</button>
+    </div>
+</template>
 
 <script type="text/javascript" src="index.js"></script>
 </body>

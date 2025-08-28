@@ -9,10 +9,17 @@ let availableCameras = [];
 let currentCameraIndex = 0;
 let currentStream = null;
 
+// Barcode list management
+let scannedBarcodes = new Set();
+let barcodeListElement;
+
 
 // Initialize camera and barcode detection on page load
 window.addEventListener('load', async function () {
   try {
+    // Initialize barcode list element
+    barcodeListElement = document.getElementById('barcodeList');
+    
     // Check if BarcodeDetector is supported
     if ('BarcodeDetector' in window) {
       barcodeDetector = new BarcodeDetector();
@@ -100,6 +107,10 @@ window.addEventListener('load', async function () {
       switchButton.style.display = 'none';
     }
 
+    // Add clear list button event listener
+    const clearButton = document.getElementById('clearList');
+    clearButton.addEventListener('click', clearBarcodeList);
+
   } catch (error) {
     console.error('Error accessing camera:', error);
     console.log('Camera access denied or not available')
@@ -170,6 +181,12 @@ async function detectBarcodes() {
         barcodes.forEach(barcode => {
           const {cornerPoints} = barcode;
 
+          // Add barcode to list if not already present
+          if (!scannedBarcodes.has(barcode.rawValue)) {
+            scannedBarcodes.add(barcode.rawValue);
+            addBarcodeToList(barcode.rawValue);
+          }
+
           // Draw bounding box
           ctx.beginPath();
           ctx.moveTo(cornerPoints[0].x, cornerPoints[0].y);
@@ -193,6 +210,48 @@ async function detectBarcodes() {
   } catch (error) {
     console.error('Barcode detection error:', error);
   }
+}
+
+// Barcode list management functions
+function addBarcodeToList(barcodeValue) {
+  const template = document.querySelector('.js-barcode-item-template');
+  const barcodeItem = template.content.cloneNode(true);
+  
+  const valueSpan = barcodeItem.querySelector('.js-barcode-value');
+  valueSpan.textContent = barcodeValue;
+  
+  const copyButton = barcodeItem.querySelector('.js-copy-btn');
+  copyButton.onclick = () => copyToClipboard(barcodeValue, copyButton);
+  
+  barcodeListElement.appendChild(barcodeItem);
+  
+  // Show clear button if this is the first barcode
+  if (scannedBarcodes.size === 1) {
+    document.getElementById('clearList').removeAttribute('hidden');
+  }
+}
+
+async function copyToClipboard(text, button) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const originalText = button.textContent;
+    button.textContent = 'Copied!';
+    button.classList.add('copied');
+    
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.classList.remove('copied');
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy: ', err);
+
+  }
+}
+
+function clearBarcodeList() {
+  scannedBarcodes.clear();
+  barcodeListElement.innerHTML = '';
+  document.getElementById('clearList').setAttribute('hidden', 'hidden');
 }
 
 // Cleanup camera stream when page unloads
