@@ -16,12 +16,36 @@ window.addEventListener('load', async function () {
       return;
     }
 
-    // Get camera access
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: {ideal: 'environment'}, // Prefer back camera
+    // Get basic camera access to enable device enumeration
+    console.log('Requesting camera access...');
+    let stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    console.log('Camera access granted');
+    
+    // Now enumerate devices (this works after permission is granted)
+    try {
+      console.log('Enumerating devices...');
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      console.log('Found ' + videoDevices.length + ' cameras');
+
+      if (videoDevices.length > 1) {
+        // Stop the initial stream
+        stream.getTracks().forEach(track => track.stop());
+        
+        // Get the last camera
+        const lastCamera = videoDevices[videoDevices.length - 1];
+        console.log('Switching to: ' + (lastCamera.label || 'Unknown camera'));
+        
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: lastCamera.deviceId } }
+        });
       }
-    });
+      
+      console.log('Final stream ready');
+    } catch (deviceError) {
+      console.log('Device enumeration failed: ' + deviceError.message);
+      // Keep the initial stream
+    }
 
     video.srcObject = stream;
 
@@ -37,7 +61,7 @@ window.addEventListener('load', async function () {
 
   } catch (error) {
     console.error('Error accessing camera:', error);
-    alert('Camera access denied or not available')
+    console.log('Camera access denied or not available')
   }
 });
 
