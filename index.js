@@ -3,7 +3,6 @@ const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let barcodeDetector;
-let animationId;
 
 // Initialize camera and barcode detection on page load
 window.addEventListener('load', async function () {
@@ -20,9 +19,7 @@ window.addEventListener('load', async function () {
     // Get camera access
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: 'environment', // Prefer back camera
-        width: {ideal: 640},
-        height: {ideal: 480}
+        facingMode: {ideal: 'environment'}, // Prefer back camera
       }
     });
 
@@ -35,8 +32,7 @@ window.addEventListener('load', async function () {
       canvas.style.width = video.offsetWidth + 'px';
       canvas.style.height = video.offsetHeight + 'px';
 
-      // Start barcode detection
-      detectBarcodes();
+      startContinuousDetection();
     });
 
   } catch (error) {
@@ -44,6 +40,11 @@ window.addEventListener('load', async function () {
     alert('Camera access denied or not available')
   }
 });
+
+async function startContinuousDetection() {
+  await detectBarcodes();
+  requestAnimationFrame(startContinuousDetection);
+}
 
 async function detectBarcodes() {
   try {
@@ -58,7 +59,6 @@ async function detectBarcodes() {
         // Draw bounding boxes
         ctx.strokeStyle = '#28a745';
         ctx.lineWidth = 3;
-        ctx.fillStyle = 'rgba(40, 167, 69, 0.2)';
 
         barcodes.forEach(barcode => {
           const {cornerPoints} = barcode;
@@ -70,12 +70,11 @@ async function detectBarcodes() {
             ctx.lineTo(point.x, point.y);
           });
           ctx.closePath();
-          ctx.fill();
           ctx.stroke();
 
           // Draw barcode value text
           ctx.fillStyle = '#28a745';
-          ctx.font = '16px Arial';
+          ctx.font = '24px Arial';
           ctx.fillText(
               barcode.rawValue,
               cornerPoints[0].x,
@@ -87,7 +86,4 @@ async function detectBarcodes() {
   } catch (error) {
     console.error('Barcode detection error:', error);
   }
-
-  // Continue detection loop
-  animationId = requestAnimationFrame(detectBarcodes);
 }
