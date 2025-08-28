@@ -9,6 +9,7 @@ let availableCameras = [];
 let currentCameraIndex = 0;
 let currentStream = null;
 
+
 // Initialize camera and barcode detection on page load
 window.addEventListener('load', async function () {
   try {
@@ -23,8 +24,31 @@ window.addEventListener('load', async function () {
 
     // Get basic camera access to enable device enumeration
     console.log('Requesting camera access...');
-    let stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    console.log('Camera access granted');
+    let stream;
+    
+    // Try multiple times with different constraints if needed
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      console.log('Camera access granted');
+    } catch (firstError) {
+      console.log('First attempt failed:', firstError.message);
+      
+      // Try with more specific constraints
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
+        });
+        console.log('Camera access granted on retry');
+      } catch (secondError) {
+        console.log('Second attempt failed:', secondError.message);
+        
+        // Final attempt with any available camera
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'user' } 
+        });
+        console.log('Camera access granted with front camera');
+      }
+    }
     
     // Now enumerate devices (this works after permission is granted)
     try {
@@ -170,3 +194,10 @@ async function detectBarcodes() {
     console.error('Barcode detection error:', error);
   }
 }
+
+// Cleanup camera stream when page unloads
+window.addEventListener('beforeunload', () => {
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+  }
+});
