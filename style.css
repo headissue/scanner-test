@@ -56,8 +56,7 @@ body {
     margin-right: 10px;
 }
 
-.js-copy-btn {
-    background-color: #28a745;
+.btn {
     border: none;
     padding: 4px 8px;
     border-radius: 3px;
@@ -65,23 +64,16 @@ body {
     font-size: 12px;
 }
 
-.js-copy-btn:hover {
-    background-color: #218838;
+.copy-btn {
+    background-color: #28a745;
+    color: white;
 }
 
-.js-copy-btn.copied {
+.copy-btn.copied {
     background-color: #6c757d;
 }
 
 .clear-btn {
+    color: white;
     background-color: #dc3545;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 10px;
-}
-
-.clear-btn:hover {
-    background-color: #c82333;
 }

@@ -11,16 +11,15 @@ let currentStream = null;
 
 // Barcode list management
 const clearListButton = document.querySelector(".js-clear-list")
+const copyListButton = document.querySelector(".js-copy-list")
+const barcodeListElement = document.querySelector(".js-barcode-list")
 let scannedBarcodes = new Set();
-let barcodeListElement;
 
 
 // Initialize camera and barcode detection on page load
 window.addEventListener('load', async function () {
   try {
-    // Initialize barcode list element
-    barcodeListElement = document.getElementById('barcodeList');
-    
+
     // Check if BarcodeDetector is supported
     if ('BarcodeDetector' in window) {
       barcodeDetector = new BarcodeDetector();
@@ -33,31 +32,31 @@ window.addEventListener('load', async function () {
     // Get basic camera access to enable device enumeration
     console.log('Requesting camera access...');
     let stream;
-    
+
     // Try multiple times with different constraints if needed
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream = await navigator.mediaDevices.getUserMedia({video: true});
       console.log('Camera access granted');
     } catch (firstError) {
       console.log('First attempt failed:', firstError.message);
-      
+
       // Try with more specific constraints
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment' } 
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {facingMode: 'environment'}
         });
         console.log('Camera access granted on retry');
       } catch (secondError) {
         console.log('Second attempt failed:', secondError.message);
-        
+
         // Final attempt with any available camera
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'user' } 
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {facingMode: 'user'}
         });
         console.log('Camera access granted with front camera');
       }
     }
-    
+
     // Now enumerate devices (this works after permission is granted)
     try {
       console.log('Enumerating devices...');
@@ -68,17 +67,17 @@ window.addEventListener('load', async function () {
       if (availableCameras.length > 1) {
         // Stop the initial stream
         stream.getTracks().forEach(track => track.stop());
-        
+
         // Start with the last camera (usually rear camera)
         currentCameraIndex = availableCameras.length - 1;
         const selectedCamera = availableCameras[currentCameraIndex];
         console.log('Using camera: ' + (selectedCamera.label || 'Unknown camera'));
-        
+
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: selectedCamera.deviceId } }
+          video: {deviceId: {exact: selectedCamera.deviceId}}
         });
       }
-      
+
       currentStream = stream;
       console.log('Camera initialized');
     } catch (deviceError) {
@@ -110,6 +109,7 @@ window.addEventListener('load', async function () {
 
 
     clearListButton.addEventListener('click', clearBarcodeList);
+    copyListButton.addEventListener('click', copyBarcodeList);
 
   } catch (error) {
     console.error('Error accessing camera:', error);
@@ -130,30 +130,30 @@ function updateButtonText() {
 // Camera switching function
 async function switchCamera() {
   if (availableCameras.length <= 1) return;
-  
+
   try {
     // Stop current stream
     if (currentStream) {
       currentStream.getTracks().forEach(track => track.stop());
     }
-    
+
     // Move to next camera (cycle through)
     currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
     const nextCamera = availableCameras[currentCameraIndex];
-    
+
     console.log('Switching to camera: ' + (nextCamera.label || 'Camera ' + (currentCameraIndex + 1)));
-    
+
     // Get new stream
     currentStream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: { exact: nextCamera.deviceId } }
+      video: {deviceId: {exact: nextCamera.deviceId}}
     });
-    
+
     // Update video source
     video.srcObject = currentStream;
-    
+
     // Update button text with new camera name
     updateButtonText();
-    
+
   } catch (error) {
     console.error('Error switching camera:', error);
   }
@@ -216,18 +216,19 @@ async function detectBarcodes() {
 function addBarcodeToList(barcodeValue) {
   const template = document.querySelector('.js-barcode-item-template');
   const barcodeItem = template.content.cloneNode(true);
-  
+
   const valueSpan = barcodeItem.querySelector('.js-barcode-value');
   valueSpan.textContent = barcodeValue;
-  
+
   const copyButton = barcodeItem.querySelector('.js-copy-btn');
   copyButton.onclick = () => copyToClipboard(barcodeValue, copyButton);
-  
+
   barcodeListElement.appendChild(barcodeItem);
-  
-  // Show clear button if this is the first barcode
+
+  // Show clear and copy buttons if this is the first barcode
   if (scannedBarcodes.size === 1) {
     clearListButton.removeAttribute('hidden');
+    copyListButton.removeAttribute('hidden');
   }
 }
 
@@ -237,7 +238,7 @@ async function copyToClipboard(text, button) {
     const originalText = button.textContent;
     button.textContent = 'Copied!';
     button.classList.add('copied');
-    
+
     setTimeout(() => {
       button.textContent = originalText;
       button.classList.remove('copied');
@@ -252,6 +253,12 @@ function clearBarcodeList() {
   scannedBarcodes.clear();
   barcodeListElement.innerHTML = '';
   clearListButton.setAttribute('hidden', 'hidden');
+  copyListButton.setAttribute('hidden', 'hidden');
+}
+
+async function copyBarcodeList() {
+  const barcodeList = Array.from(scannedBarcodes).join('\n');
+  await copyToClipboard(barcodeList, copyListButton);
 }
 
 // Cleanup camera stream when page unloads
