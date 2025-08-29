@@ -22,7 +22,7 @@ body {
     z-index: 999;
 }
 
-.camera-container .btn {
+.switch-camera-btn {
     position: absolute;
     top: 0;
     left: 0;
@@ -30,8 +30,6 @@ body {
     margin: 10px;
 }
 
-.camera-container .switch-camera-btn {
-}
 
 .btn {
     color: white;

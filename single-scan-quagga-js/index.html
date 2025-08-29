@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode Scanner</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="quagga.min.js-0.12.1.js"></script>
+</head>
+
+<body>
+<div id="interactive"  class="camera-container">
+</div>
+<button class="btn switch-camera-btn js-switch-camera" hidden>Switch Camera</button>
+<button class="btn next-scan-btn js-next-scan" hidden onclick="location.reload()">Next Scan</button>
+<pre class="js-detection-result"></pre>
+
+<script src="index.js"></script>
+</body>
+</html>
