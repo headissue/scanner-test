@@ -1,17 +1,17 @@
-const alertErrors = true;
-const alertInfo = true;
+const alertErrors = false;
+const alertInfo = false;
 const Log = {
   error: function (...args) {
     alertErrors ? alert(JSON.stringify(args)) : console.error(...args);
   },
   info: function (...args) {
-    alertInfo ? alert(JSON.stringify(...args)) : console.log(...args);
+    alertInfo ? alert(JSON.stringify(args)) : console.log(...args);
   }
 }
 
 // Camera switching variables
 let availableCameras = [];
-let currentCameraIndex = 0;
+let currentCamera = null;
 let currentStream = null;
 let isScanning = false;
 
@@ -31,6 +31,19 @@ async function findAvailableCameras() {
   if (availableCameras.length > 1) {
     switchButton.removeAttribute('hidden');
     switchButton.addEventListener('click', switchCamera);
+  }
+}
+
+// Update button text with current camera name
+function updateButtonText() {
+  if (currentCamera) {
+    const cameraName = currentCamera.label;
+    switchButton.textContent = `${cameraName}`;
+
+    // Revert to default text after 1 second
+    setTimeout(() => {
+      switchButton.textContent = '📷';
+    }, 1000);
   }
 }
 
@@ -56,11 +69,13 @@ async function startScanner() {
     // Get the preferred camera (usually the rear camera)
     let deviceId = null;
     if (availableCameras.length > 0) {
-      // Use the last camera (usually rear camera) if available
-      currentCameraIndex = availableCameras.length - 1;
-      deviceId = availableCameras[currentCameraIndex].deviceId;
+      if (!currentCamera) {
+        currentCamera = availableCameras[availableCameras.length - 1];
+      }
+      deviceId = currentCamera.deviceId;  // Use deviceId property of the camera object
     }
 
+    updateButtonText();
     // Configure Quagga
     const config = {
       inputStream: {
@@ -177,8 +192,16 @@ async function switchCamera() {
     stopScanner();
 
     // Switch to next camera
-    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
-    Log.info({currentCameraIndex, availableCameras})
+    const currentIndex = availableCameras.indexOf(currentCamera);
+    const nextIndex = (currentIndex + 1) % availableCameras.length;
+    currentCamera = availableCameras[nextIndex];  // Fix: Set to the actual camera object
+    
+    Log.info({
+      currentCamera: currentCamera.label,
+      availableCameras: availableCameras
+          .map(camera => camera.label)
+    });
+    
     // Restart scanner with new camera
     setTimeout(startScanner, 100);
   } catch (error) {
@@ -197,4 +220,3 @@ function closeExistingStreams() {
 window.addEventListener('beforeunload', () => {
   closeExistingStreams();
 });
-
