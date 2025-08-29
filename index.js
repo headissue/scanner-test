@@ -10,6 +10,7 @@ let currentCameraIndex = 0;
 let currentStream = null;
 
 // Barcode list management
+const clearListButton = document.querySelector(".js-clear-list")
 let scannedBarcodes = new Set();
 let barcodeListElement;
 
@@ -107,9 +108,8 @@ window.addEventListener('load', async function () {
       switchButton.style.display = 'none';
     }
 
-    // Add clear list button event listener
-    const clearButton = document.getElementById('clearList');
-    clearButton.addEventListener('click', clearBarcodeList);
+
+    clearListButton.addEventListener('click', clearBarcodeList);
 
   } catch (error) {
     console.error('Error accessing camera:', error);
@@ -227,7 +227,7 @@ function addBarcodeToList(barcodeValue) {
   
   // Show clear button if this is the first barcode
   if (scannedBarcodes.size === 1) {
-    document.getElementById('clearList').removeAttribute('hidden');
+    clearListButton.removeAttribute('hidden');
   }
 }
 
@@ -251,7 +251,7 @@ async function copyToClipboard(text, button) {
 function clearBarcodeList() {
   scannedBarcodes.clear();
   barcodeListElement.innerHTML = '';
-  document.getElementById('clearList').setAttribute('hidden', 'hidden');
+  clearListButton.setAttribute('hidden', 'hidden');
 }
 
 // Cleanup camera stream when page unloads

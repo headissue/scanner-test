@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<h1 hidden>Scanner</h1>
 <div class="container">
     <div>
         <video id="video" autoplay muted playsinline></video>
@@ -15,10 +16,10 @@
     <button id="switchCamera">Switch Camera</button>
 </div>
 
-<div class="barcode-list">
-    <h3>Scanned Barcodes <span id="clearList" class="clear-btn" hidden="hidden">Clear List</span></h3>
+<section class="barcode-list">
+    <h2>Scanned Barcodes <span class="clear-btn js-clear-list" hidden="hidden">Clear List</span> <span class="copy-btn js-copy-list" hidden="hidden">Copy List</span></h2>
     <div id="barcodeList"></div>
-</div>
+</section>
 
 <template id="barcodeItemTemplate" class="js-barcode-item-template">
     <div class="barcode-item">
