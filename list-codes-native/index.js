@@ -122,7 +122,12 @@ function updateButtonText() {
   if (availableCameras.length > 0) {
     const currentCamera = availableCameras[currentCameraIndex];
     const cameraName = currentCamera.label || `Camera ${currentCameraIndex + 1}`;
-    switchButton.textContent = `Switch Camera, current: ${cameraName}`;
+    switchButton.textContent = `${cameraName}`;
+
+    // Revert to icon after 1 second
+    setTimeout(() => {
+      switchButton.textContent = '📷';
+    }, 1000);
   }
 }
 
