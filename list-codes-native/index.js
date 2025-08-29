@@ -119,7 +119,6 @@ window.addEventListener('load', async function () {
 
 // Update button text with current camera name
 function updateButtonText() {
-  const switchButton = document.getElementById('switchCamera');
   if (availableCameras.length > 0) {
     const currentCamera = availableCameras[currentCameraIndex];
     const cameraName = currentCamera.label || `Camera ${currentCameraIndex + 1}`;
