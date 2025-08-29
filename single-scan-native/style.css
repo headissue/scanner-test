@@ -37,34 +37,6 @@ body {
     background: #00000080;
 }
 
-.barcode-list {
-    background: #00000080;
-    margin-top: 20px;
-    text-align: left;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-    ;
-}
-.barcode-list h2 {
-    font-size: small;
-}
-
-.barcode-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    border-radius: 4px;
-}
-
-.js-barcode-value {
-    font-family: monospace;
-    font-weight: bold;
-    flex-grow: 1;
-    margin-right: 10px;
-}
 
 .btn {
     border: none;
@@ -72,18 +44,4 @@ body {
     border-radius: 3px;
     cursor: pointer;
     font-size: 12px;
-}
-
-.copy-btn {
-    background-color: #28a745;
-    color: white;
-}
-
-.copy-btn.copied {
-    background-color: #6c757d;
-}
-
-.clear-btn {
-    color: white;
-    background-color: #dc3545;
 }

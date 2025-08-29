@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Test - GitHub Pages</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1 hidden>Scanner</h1>
+<div class="camera-container">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="canvas"></canvas>
+    <button class="btn switch-camera-btn js-switch-camera">📷</button>
+</div>
+<button class="btn js-next-scan" onclick="location.reload()" hidden>📷 Next Scan</button>
+<pre class="js-detection-result"></pre>
+
+<template id="barcodeItemTemplate" class="js-barcode-item-template">
+    <div class="barcode-item">
+        <span class="js-barcode-value"></span>
+        <button class="btn copy-btn js-copy-btn">Copy</button>
+    </div>
+</template>
+
+<script type="text/javascript" src="index.js"></script>
+</body>
+</html>
