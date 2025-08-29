@@ -10,21 +10,24 @@ const switchButton = document.querySelector('.js-switch-camera');
 const nextScanButton = document.querySelector('.js-next-scan');
 const resultElement = document.querySelector('.js-detection-result');
 
+async function findAvailableCameras() {
+  console.log('Enumerating devices...');
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  availableCameras = devices.filter(device => device.kind === 'videoinput');
+  console.log('Found ' + availableCameras.length + ' cameras');
+
+  // Show switch button if multiple cameras exist
+  if (availableCameras.length > 1) {
+    switchButton.removeAttribute('hidden');
+    switchButton.addEventListener('click', switchCamera);
+  }
+}
+
 // Initialize scanner on page load
 window.addEventListener('load', async function () {
   try {
-    // Enumerate devices to enable camera switching
-    console.log('Enumerating devices...');
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    availableCameras = devices.filter(device => device.kind === 'videoinput');
-    console.log('Found ' + availableCameras.length + ' cameras');
-    
-    // Show switch button if multiple cameras exist
-    if (availableCameras.length > 1 && switchButton) {
-      switchButton.removeAttribute('hidden');
-      switchButton.addEventListener('click', switchCamera);
-    }
-    
+    await findAvailableCameras();
+
     // Start the scanner
     startScanner();
   } catch (error) {
@@ -35,14 +38,10 @@ window.addEventListener('load', async function () {
 // Start the Quagga scanner
 async function startScanner() {
   if (isScanning) return;
-  
+
   try {
-    // Stop any existing stream
-    if (currentStream) {
-      currentStream.getTracks().forEach(track => track.stop());
-      currentStream = null;
-    }
-    
+    closeExistingStreams();
+
     // Get the preferred camera (usually the rear camera)
     let deviceId = null;
     if (availableCameras.length > 0) {
@@ -50,7 +49,7 @@ async function startScanner() {
       currentCameraIndex = availableCameras.length - 1;
       deviceId = availableCameras[currentCameraIndex].deviceId;
     }
-    
+
     // Configure Quagga
     const config = {
       inputStream: {
@@ -79,37 +78,37 @@ async function startScanner() {
       locate: true
 
     };
-    
+
     // Initialize Quagga
-    Quagga.init(config, function(err) {
+    Quagga.init(config, function (err) {
       if (err) {
         console.error('Error initializing Quagga:', err);
         return;
       }
-      
+
       // Store the video stream
       const video = document.querySelector('#interactive video');
       if (video && video.srcObject) {
         currentStream = video.srcObject;
       }
-      
+
       // Start Quagga
       Quagga.start();
       isScanning = true;
-      
+
       console.log('Quagga scanner started');
     });
-    
+
     // Set up detection callback for single scan
-    Quagga.onDetected(function(result) {
+    Quagga.onDetected(function (result) {
       if (!isScanning) return;
-      
+
       // Stop scanning after first detection
       stopScanner();
-      
+
       // Process the result
       console.log('Detected:', result);
-      
+
       // Create a simplified result object with only the required attributes
       const simplifiedResult = {
         format: result.codeResult && result.codeResult.format ? result.codeResult.format : 'unknown',
@@ -119,21 +118,21 @@ async function startScanner() {
       if (resultElement) {
         resultElement.textContent = JSON.stringify(simplifiedResult, null, 2);
       }
-      
+
       // Clean up elements
       cleanupElements();
-      
+
       // Show next scan button
       if (nextScanButton) {
         nextScanButton.removeAttribute('hidden');
       }
-      
+
       // Hide switch camera button
       if (switchButton) {
         switchButton.setAttribute('hidden', 'true');
       }
     });
-    
+
   } catch (error) {
     console.error('Error starting scanner:', error);
   }
@@ -146,13 +145,8 @@ function stopScanner() {
   } catch (e) {
     console.error("Error stopping Quagga:", e);
   }
+  closeExistingStreams()
   isScanning = false;
-  
-  // Stop the camera stream
-  if (currentStream) {
-    currentStream.getTracks().forEach(track => track.stop());
-    currentStream = null;
-  }
 }
 
 // Clean up elements after scanning
@@ -166,14 +160,14 @@ function cleanupElements() {
 // Camera switching function
 async function switchCamera() {
   if (availableCameras.length <= 1) return;
-  
+
   try {
     // Stop current scanner
     stopScanner();
-    
+
     // Switch to next camera
     currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
-    
+    console.log({currentCameraIndex, availableCameras})
     // Restart scanner with new camera
     setTimeout(startScanner, 100);
   } catch (error) {
@@ -181,9 +175,14 @@ async function switchCamera() {
   }
 }
 
-// Cleanup camera stream when page unloads
-window.addEventListener('beforeunload', () => {
+function closeExistingStreams() {
   if (currentStream) {
     currentStream.getTracks().forEach(track => track.stop());
+    currentStream = null;
   }
+}
+
+// Cleanup camera stream when page unloads
+window.addEventListener('beforeunload', () => {
+  closeExistingStreams();
 });
