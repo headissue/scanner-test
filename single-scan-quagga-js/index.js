@@ -1,3 +1,14 @@
+const alertErrors = true;
+const alertInfo = true;
+const Log = {
+  error: function (...args) {
+    alertErrors ? alert(JSON.stringify(args)) : console.error(...args);
+  },
+  info: function (...args) {
+    alertInfo ? alert(JSON.stringify(...args)) : console.log(...args);
+  }
+}
+
 // Camera switching variables
 let availableCameras = [];
 let currentCameraIndex = 0;
@@ -11,10 +22,10 @@ const nextScanButton = document.querySelector('.js-next-scan');
 const resultElement = document.querySelector('.js-detection-result');
 
 async function findAvailableCameras() {
-  console.log('Enumerating devices...');
+  Log.info('Enumerating devices...');
   const devices = await navigator.mediaDevices.enumerateDevices();
   availableCameras = devices.filter(device => device.kind === 'videoinput');
-  console.log('Found ' + availableCameras.length + ' cameras');
+  Log.info('Found ' + availableCameras.length + ' cameras');
 
   // Show switch button if multiple cameras exist
   if (availableCameras.length > 1) {
@@ -31,7 +42,7 @@ window.addEventListener('load', async function () {
     // Start the scanner
     startScanner();
   } catch (error) {
-    console.error('Error initializing scanner:', error);
+    Log.error('Error initializing scanner:', error);
   }
 });
 
@@ -82,7 +93,7 @@ async function startScanner() {
     // Initialize Quagga
     Quagga.init(config, function (err) {
       if (err) {
-        console.error('Error initializing Quagga:', err);
+        Log.error('Error initializing Quagga:', err);
         return;
       }
 
@@ -96,7 +107,7 @@ async function startScanner() {
       Quagga.start();
       isScanning = true;
 
-      console.log('Quagga scanner started');
+      Log.info('Quagga scanner started');
     });
 
     // Set up detection callback for single scan
@@ -107,7 +118,7 @@ async function startScanner() {
       stopScanner();
 
       // Process the result
-      console.log('Detected:', result);
+      Log.info('Detected:', result);
 
       // Create a simplified result object with only the required attributes
       const simplifiedResult = {
@@ -129,12 +140,12 @@ async function startScanner() {
 
       // Hide switch camera button
       if (switchButton) {
-        switchButton.setAttribute('hidden', 'true');
+        switchButton.setAttribute('hidden', 'hidden');
       }
     });
 
   } catch (error) {
-    console.error('Error starting scanner:', error);
+    Log.error('Error starting scanner:', error);
   }
 }
 
@@ -143,7 +154,7 @@ function stopScanner() {
   try {
     Quagga.stop();
   } catch (e) {
-    console.error("Error stopping Quagga:", e);
+    Log.error("Error stopping Quagga:", e);
   }
   closeExistingStreams()
   isScanning = false;
@@ -167,11 +178,11 @@ async function switchCamera() {
 
     // Switch to next camera
     currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
-    console.log({currentCameraIndex, availableCameras})
+    Log.info({currentCameraIndex, availableCameras})
     // Restart scanner with new camera
     setTimeout(startScanner, 100);
   } catch (error) {
-    console.error('Error switching camera:', error);
+    Log.error('Error switching camera:', error);
   }
 }
 
@@ -186,3 +197,4 @@ function closeExistingStreams() {
 window.addEventListener('beforeunload', () => {
   closeExistingStreams();
 });
+
