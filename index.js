@@ -2,6 +2,7 @@
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+const switchButton = document.querySelector('.js-switch-camera');
 let barcodeDetector;
 
 // Camera switching variables
@@ -98,13 +99,12 @@ window.addEventListener('load', async function () {
     });
 
     // Add camera switch button event listener
-    const switchButton = document.getElementById('switchCamera');
     if (availableCameras.length > 1) {
-      switchButton.style.display = 'block';
+      switchButton.removeAttribute('hidden');
       switchButton.addEventListener('click', switchCamera);
       updateButtonText();
     } else {
-      switchButton.style.display = 'none';
+      switchButton.setAttribute('hidden', 'hidden');
     }
 
 
