@@ -171,18 +171,44 @@ async function detectBarcodes() {
   }
 
   try {
-    // FIXME only use horizontal bar heigth 300px. draw tob and bottom border
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const detectionHeight = 150;
+    const detectionY = (canvas.height - detectionHeight) / 2;
     
-    // Detect barcodes in the current frame
-    const barcodes = await barcodeDetector.detect(canvas);
+    // Clear canvas and draw detection area borders only
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw outer rounded rectangle
+    ctx.strokeStyle = 'rgba(204,81,4,0.82)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.roundRect(0, detectionY, canvas.width, detectionHeight, 15);
+    ctx.stroke();
+    
+    // Draw smaller inner rounded rectangle
+    const innerPadding = 10;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(204,41,4,0.49)';
+    ctx.beginPath();
+    ctx.roundRect(innerPadding, detectionY + innerPadding, canvas.width - (innerPadding * 2), detectionHeight - (innerPadding * 2), 10);
+    ctx.stroke();
+    
+    // Create detection canvas with only the needed area from video
+    const detectionCanvas = document.createElement('canvas');
+    detectionCanvas.width = canvas.width;
+    detectionCanvas.height = detectionHeight;
+    const detectionCtx = detectionCanvas.getContext('2d');
+    
+    // Draw only the detection strip directly from video
+    detectionCtx.drawImage(video, 0, detectionY, canvas.width, detectionHeight, 0, 0, canvas.width, detectionHeight);
+    
+    // Detect barcodes in the detection area only
+    const barcodes = await barcodeDetector.detect(detectionCanvas);
     
     if (barcodes.length > 0) {
       // Stop continuous detection
       isDetecting = false;
       
       const detectionResult = {
-        timestamp: new Date().toISOString(),
         barcodes: barcodes.map(barcode => ({
           format: barcode.format,
           rawValue: barcode.rawValue,
@@ -191,7 +217,8 @@ async function detectBarcodes() {
             y: barcode.boundingBox.y,
             width: barcode.boundingBox.width,
             height: barcode.boundingBox.height
-          }
+          },
+          cornerPoints: barcode.cornerPoints
         }))
       };
       

@@ -31,17 +31,27 @@ body {
 }
 
 .camera-container .switch-camera-btn {
-    color: white;
-    font-weight: bold;
-    border-radius: 10px;
-    background: #00000080;
 }
 
-
 .btn {
-    border: none;
+    color: white;
+    border-radius: 10px;
+    background: #00000080;
+    font-weight: bold;
+    border: 2px solid #FFFFFF80;
     padding: 4px 8px;
-    border-radius: 3px;
     cursor: pointer;
-    font-size: 12px;
+    text-align: center;
+}
+
+.next-scan-btn {
+    width: 200px;
+    border-radius: 10px;
+    background: #00000080;
+    margin: 20px;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
 }
