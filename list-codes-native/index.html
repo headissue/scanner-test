@@ -8,9 +8,11 @@
 </head>
 <body>
 <h1 hidden>Scanner</h1>
-<video id="video" autoplay muted playsinline></video>
-<canvas id="canvas"></canvas>
-<button class="btn js-switch-camera">Switch Camera</button>
+<div class="camera-container">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="canvas"></canvas>
+    <button class="btn js-switch-camera">Switch Camera</button>
+</div>
 
 <section class="barcode-list js-manage-barcode-list">
     <h2>Scanned Barcodes <span class="btn clear-btn js-clear-list" hidden="hidden">Clear List</span> <span

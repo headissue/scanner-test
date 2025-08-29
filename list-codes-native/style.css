@@ -5,22 +5,29 @@ body {
     color: white;
 }
 
-#video {
+.camera-container {
+    position: relative;
+}
+
+.camera-container #video {
     width: 100%;
     height: auto;
     object-fit: contain;
 }
 
-#canvas {
+.camera-container #canvas {
     position: absolute;
     top: 0;
     left: 0;
     z-index: 999;
 }
 
-#switchCamera {
-    padding: 10px;
-    margin-left: auto;
+.camera-container .btn {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 999;
+    margin: 10px;
 }
 
 .barcode-list {
