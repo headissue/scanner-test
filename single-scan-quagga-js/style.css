@@ -1,12 +1,12 @@
 body {
     margin: 0 auto;
-    padding: 0.25rem;
     background: black;
     color: white;
 }
 
 .camera-container {
     position: relative;
+    width: 100%;
 }
 
 .camera-container video {
@@ -20,6 +20,8 @@ body {
     top: 0;
     left: 0;
     z-index: 999;
+    width: 100%;
+    height: auto;
 }
 
 .switch-camera-btn {

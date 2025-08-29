@@ -21,6 +21,40 @@ const switchButton = document.querySelector('.js-switch-camera');
 const nextScanButton = document.querySelector('.js-next-scan');
 const resultElement = document.querySelector('.js-detection-result');
 
+const scannerConfig = {
+  inputStream: {
+    name: "Live",
+    type: "LiveStream",
+    target: document.querySelector("#interactive"),
+    constraints: {
+      deviceId: undefined,
+      facingMode: "environment"
+    },
+    area: { // defines rectangle of the detection/localization area
+      top: "40%",    // top offset
+      right: "0%",  // right offset
+      left: "0%",   // left offset
+      bottom: "40%"  // bottom offset
+    },
+  },
+  decoder: {
+    readers: [
+      "code_128_reader",
+      "ean_reader",
+      "ean_8_reader",
+      "code_39_reader",
+      "code_39_vin_reader",
+      "codabar_reader",
+      "upc_reader",
+      "upc_e_reader",
+      "i2of5_reader"
+    ],
+    multiple: false
+  },
+  locate: false
+};
+
+
 async function findAvailableCameras() {
   Log.info('Enumerating devices...');
   const devices = await navigator.mediaDevices.enumerateDevices();
@@ -67,46 +101,17 @@ async function startScanner() {
     closeExistingStreams();
 
     // Get the preferred camera (usually the rear camera)
-    let deviceId = null;
     if (availableCameras.length > 0) {
       if (!currentCamera) {
         currentCamera = availableCameras[availableCameras.length - 1];
       }
-      deviceId = currentCamera.deviceId;  // Use deviceId property of the camera object
+      scannerConfig.inputStream.constraints.deviceId = {exact: currentCamera.deviceId};  // Use deviceId property of the camera object
     }
 
     updateButtonText();
-    // Configure Quagga
-    const config = {
-      inputStream: {
-        name: "Live",
-        type: "LiveStream",
-        target: document.querySelector("#interactive"),
-        constraints: {
-          deviceId: deviceId ? {exact: deviceId} : undefined,
-          facingMode: "environment"
-        }
-      },
-      decoder: {
-        readers: [
-          "code_128_reader",
-          "ean_reader",
-          "ean_8_reader",
-          "code_39_reader",
-          "code_39_vin_reader",
-          "codabar_reader",
-          "upc_reader",
-          "upc_e_reader",
-          "i2of5_reader"
-        ],
-        multiple: false
-      },
-      locate: true
-
-    };
 
     // Initialize Quagga
-    Quagga.init(config, function (err) {
+    Quagga.init(scannerConfig, function (err) {
       if (err) {
         Log.error('Error initializing Quagga:', err);
         return;
@@ -159,6 +164,28 @@ async function startScanner() {
       }
     });
 
+    Quagga.onProcessed(function (result) {
+      if (!isScanning) return;
+
+      // Get the drawing context and canvas
+      const drawingCtx = Quagga.canvas.ctx.overlay;
+      const drawingCanvas = Quagga.canvas.dom.overlay;
+
+      if (drawingCtx && drawingCanvas) {
+        // Clear the canvas
+        drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
+
+        // Draw detected boxes if available
+        if (result) {
+          if (result.boxes) {
+            result.boxes.forEach(function (box) {
+              Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
+            });
+          }
+        }
+      }
+    });
+
   } catch (error) {
     Log.error('Error starting scanner:', error);
   }
@@ -195,13 +222,13 @@ async function switchCamera() {
     const currentIndex = availableCameras.indexOf(currentCamera);
     const nextIndex = (currentIndex + 1) % availableCameras.length;
     currentCamera = availableCameras[nextIndex];  // Fix: Set to the actual camera object
-    
+
     Log.info({
       currentCamera: currentCamera.label,
       availableCameras: availableCameras
           .map(camera => camera.label)
     });
-    
+
     // Restart scanner with new camera
     setTimeout(startScanner, 100);
   } catch (error) {
