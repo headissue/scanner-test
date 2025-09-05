@@ -28,7 +28,7 @@ const scannerConfig = {
     target: document.querySelector("#interactive"),
     constraints: {
       deviceId: undefined,
-      facingMode: "environment"
+      facingMode: { ideal: "environment" }
     },
     area: { // defines rectangle of the detection/localization area
       top: "40%",    // top offset
