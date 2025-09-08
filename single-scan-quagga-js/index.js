@@ -27,7 +27,6 @@ const scannerConfig = {
     type: "LiveStream",
     target: document.querySelector("#interactive"),
     constraints: {
-      deviceId: undefined,
       facingMode: { ideal: "environment" }
     },
     area: { // defines rectangle of the detection/localization area
@@ -81,18 +80,6 @@ function updateButtonText() {
   }
 }
 
-// Initialize scanner on page load
-window.addEventListener('load', async function () {
-  try {
-    await findAvailableCameras();
-
-    // Start the scanner
-    startScanner();
-  } catch (error) {
-    Log.error('Error initializing scanner:', error);
-  }
-});
-
 // Start the Quagga scanner
 async function startScanner() {
   if (isScanning) return;
@@ -106,6 +93,10 @@ async function startScanner() {
         currentCamera = availableCameras[availableCameras.length - 1];
       }
       scannerConfig.inputStream.constraints.deviceId = {exact: currentCamera.deviceId};  // Use deviceId property of the camera object
+    } else {
+      Log.error('No cameras found');
+      isScanning = false;
+      return;
     }
 
     updateButtonText();
@@ -114,20 +105,26 @@ async function startScanner() {
     Quagga.init(scannerConfig, function (err) {
       if (err) {
         Log.error('Error initializing Quagga:', err);
+        isScanning = false;
         return;
       }
 
-      // Store the video stream
-      const video = document.querySelector('#interactive video');
-      if (video && video.srcObject) {
-        currentStream = video.srcObject;
+      try {
+        // Store the video stream
+        const video = document.querySelector('#interactive video');
+        if (video && video.srcObject) {
+          currentStream = video.srcObject;
+        }
+
+        // Start Quagga
+        Quagga.start();
+        isScanning = true;
+
+        Log.info('Quagga scanner started');
+      } catch (startError) {
+        Log.error('Error starting Quagga:', startError);
+        isScanning = false;
       }
-
-      // Start Quagga
-      Quagga.start();
-      isScanning = true;
-
-      Log.info('Quagga scanner started');
     });
 
     // Set up detection callback for single scan
@@ -247,3 +244,18 @@ function closeExistingStreams() {
 window.addEventListener('beforeunload', () => {
   closeExistingStreams();
 });
+
+
+// Initialize scanner on page load
+async function initializeApp() {
+  try {
+    await findAvailableCameras();
+
+    // Start the scanner
+    await startScanner();
+  } catch (error) {
+    Log.error('Error initializing scanner:', error);
+  }
+}
+
+await initializeApp();
