@@ -55,16 +55,23 @@ const scannerConfig = {
 
 
 async function findAvailableCameras() {
-  Log.info('Enumerating devices...');
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  availableCameras = devices.filter(device => device.kind === 'videoinput');
-  Log.info('Found ' + availableCameras.length + ' cameras');
+    closeExistingStreams()
+    
+    Log.info('Enumerating devices...');
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    availableCameras = devices.filter(device => device.kind === 'videoinput');
+    
+    Log.info('Found cameras:', availableCameras.map(cam => ({
+      label: cam.label,
+      deviceId: cam.deviceId ? cam.deviceId.substring(0, 20) + '...' : 'empty'
+    })));
 
-  // Show switch button if multiple cameras exist
-  if (availableCameras.length > 1) {
-    switchButton.removeAttribute('hidden');
-    switchButton.addEventListener('click', switchCamera);
-  }
+    // Show switch button if multiple cameras exist
+    if (availableCameras.length > 1) {
+      switchButton.removeAttribute('hidden');
+    } else {
+      switchButton.setAttribute('hidden', 'hidden');
+    }
 }
 
 // Update button text with current camera name
@@ -87,12 +94,17 @@ async function startScanner() {
   try {
     closeExistingStreams();
 
-    // Get the preferred camera (usually the rear camera)
+    // Get the preferred camera (usually the last in the list)
     if (availableCameras.length > 0) {
       if (!currentCamera) {
         currentCamera = availableCameras[availableCameras.length - 1];
       }
-      scannerConfig.inputStream.constraints.deviceId = {exact: currentCamera.deviceId};  // Use deviceId property of the camera object
+      if (!currentCamera.deviceId) {
+        Log.error('no deviceId');
+        isScanning = false;
+        return;
+      }
+      scannerConfig.inputStream.constraints.deviceId = {exact: currentCamera.deviceId}
     } else {
       Log.error('No cameras found');
       isScanning = false;
@@ -119,8 +131,6 @@ async function startScanner() {
         // Start Quagga
         Quagga.start();
         isScanning = true;
-
-        Log.info('Quagga scanner started');
       } catch (startError) {
         Log.error('Error starting Quagga:', startError);
         isScanning = false;
@@ -220,12 +230,6 @@ async function switchCamera() {
     const nextIndex = (currentIndex + 1) % availableCameras.length;
     currentCamera = availableCameras[nextIndex];  // Fix: Set to the actual camera object
 
-    Log.info({
-      currentCamera: currentCamera.label,
-      availableCameras: availableCameras
-          .map(camera => camera.label)
-    });
-
     // Restart scanner with new camera
     setTimeout(startScanner, 100);
   } catch (error) {
@@ -249,7 +253,11 @@ window.addEventListener('beforeunload', () => {
 // Initialize scanner on page load
 async function initializeApp() {
   try {
+    Log.info('Requesting camera permissions...');
+    currentStream = await navigator.mediaDevices.getUserMedia({video: {}});
+
     await findAvailableCameras();
+    switchButton.addEventListener('click', switchCamera);
 
     // Start the scanner
     await startScanner();
