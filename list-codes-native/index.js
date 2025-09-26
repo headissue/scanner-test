@@ -9,6 +9,7 @@ let barcodeDetector;
 let availableCameras = [];
 let currentCameraIndex = 0;
 let currentStream = null;
+const detectionIntervalms = 600;
 
 // Barcode list management
 const clearListButton = document.querySelector(".js-clear-list")
@@ -190,7 +191,7 @@ function startDrawingLoop() {
 // Separate detection loop that's throttled
 function startDetectionLoop() {
   function detect(currentTime) {
-    if (currentTime - lastDetectionTime >= 700 && !isDetecting) {
+    if (currentTime - lastDetectionTime >= detectionIntervalms && !isDetecting) {
       isDetecting = true;
       detectBarcodes().finally(() => {
         isDetecting = false;
@@ -286,7 +287,8 @@ function drawBarcodes() {
 
   // Display detection timing on bottom left
   ctx.font = '16px Arial';
-  const fpsText = `barcode detection took ${deltaTimeMs.toFixed(0)}ms`;
+  let s = `${detectionIntervalms}ms`;
+  const fpsText = `barcode detection, every ${s}, took ${deltaTimeMs.toFixed(0)}ms`;
   const textMetrics = ctx.measureText(fpsText);
   const textWidth = textMetrics.width;
   const textHeight = 16; // Font size
