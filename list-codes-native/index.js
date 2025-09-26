@@ -382,12 +382,29 @@ function addBarcodeToList(barcodeValue) {
   const copyButton = barcodeItem.querySelector('.js-copy-btn');
   copyButton.onclick = () => copyToClipboard(barcodeValue, copyButton);
 
+  const deleteButton = barcodeItem.querySelector('.js-delete-btn');
+  deleteButton.onclick = () => deleteBarcodeFromList(barcodeValue, deleteButton.closest('.barcode-item'));
+
   barcodeListElement.appendChild(barcodeItem);
 
   // Show clear and copy buttons if this is the first barcode
   if (scannedBarcodes.size === 1) {
     clearListButton.removeAttribute('hidden');
     copyListButton.removeAttribute('hidden');
+  }
+}
+
+function deleteBarcodeFromList(barcodeValue, itemElement) {
+  // Remove from the scanned barcodes set
+  scannedBarcodes.delete(barcodeValue);
+  
+  // Remove the DOM element
+  itemElement.remove();
+  
+  // Hide clear and copy buttons if no barcodes remain
+  if (scannedBarcodes.size === 0) {
+    clearListButton.setAttribute('hidden', 'hidden');
+    copyListButton.setAttribute('hidden', 'hidden');
   }
 }
 

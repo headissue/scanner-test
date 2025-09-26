@@ -1,6 +1,9 @@
+:root {
+    --small: 0.25rem;
+}
 body {
     margin: 0 auto;
-    padding: 0.25rem;
+    padding: var(--small);
     background: black;
     color: white;
 }
@@ -27,19 +30,19 @@ body {
     top: 0;
     left: 0;
     z-index: 999;
-    margin: 10px;
+    margin: var(--small);
 }
 
 .camera-container .switch-camera-btn {
     color: white;
     font-weight: bold;
-    border-radius: 10px;
+    border-radius: var(--small);
     background: #00000080;
 }
 
 .barcode-list {
     background: #00000080;
-    margin-top: 20px;
+    margin-top: var(--small);
     text-align: left;
     max-width: 600px;
     margin-left: auto;
@@ -54,24 +57,24 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    border-radius: 4px;
+    padding: var(--small);
+    margin-bottom: var(--small);
+    border-radius: var(--small);
 }
 
 .js-barcode-value {
     font-family: monospace;
     font-weight: bold;
     flex-grow: 1;
-    margin-right: 10px;
+    margin-right: var(--small);
 }
 
 .btn {
     border: none;
-    padding: 4px 8px;
-    border-radius: 3px;
+    padding: var(--small);
+    border-radius: var(--small);
     cursor: pointer;
-    font-size: 12px;
+    font-size: 0.8rem;
 }
 
 .copy-btn {
@@ -83,7 +86,9 @@ body {
     background-color: #6c757d;
 }
 
-.clear-btn {
+.clear-btn,
+.delete-btn {
+    margin: var(--small);
     color: white;
     background-color: #dc3545;
 }
