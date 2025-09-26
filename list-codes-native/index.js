@@ -95,7 +95,8 @@ window.addEventListener('load', async function () {
       canvas.style.width = video.offsetWidth + 'px';
       canvas.style.height = video.offsetHeight + 'px';
 
-      startContinuousDetection();
+      startDrawingLoop();
+      startDetectionLoop();
     });
 
     // Add camera switch button event listener
@@ -167,6 +168,9 @@ let lastDetectionTime = 0;
 let isDetecting = false;
 let lastDetectedBarcodes = [];
 let deltaTimeMs = 0;
+let currentBarcodes = []; // Store current barcodes for drawing
+let displayBarcodes = new Map(); // Store barcode positions for tweening
+let lastDrawTime = 0; // For drawing throttling
 
 // Helper function to calculate center point from corner points
 function calculateCenterPoint(cornerPoints) {
@@ -175,15 +179,31 @@ function calculateCenterPoint(cornerPoints) {
   return { x: centerX, y: centerY };
 }
 
-async function startContinuousDetection(currentTime) {
-  if (currentTime - lastDetectionTime >= 16 && !isDetecting) {
-    isDetecting = true;
-    detectBarcodes().finally(() => {
-      isDetecting = false;
-    });
-    lastDetectionTime = currentTime;
+// Separate drawing loop throttled to 40 FPS
+function startDrawingLoop() {
+  function draw(currentTime) {
+    if (currentTime - lastDrawTime >= 25) { // 40 FPS = 25ms intervals
+      drawBarcodes();
+      lastDrawTime = currentTime;
+    }
+    requestAnimationFrame(draw);
   }
-  requestAnimationFrame(startContinuousDetection);
+  requestAnimationFrame(draw);
+}
+
+// Separate detection loop that's throttled
+function startDetectionLoop() {
+  function detect(currentTime) {
+    if (currentTime - lastDetectionTime >= 700 && !isDetecting) {
+      isDetecting = true;
+      detectBarcodes().finally(() => {
+        isDetecting = false;
+      });
+      lastDetectionTime = currentTime;
+    }
+    requestAnimationFrame(detect);
+  }
+  requestAnimationFrame(detect);
 }
 
 function areStableEnough(barcodes, previous) {
@@ -223,6 +243,7 @@ function sameBarcodesDetected(currentBarcodeValues, lastBarcodeValues) {
 }
 
 
+// Barcode detection function (no drawing)
 async function detectBarcodes() {
   try {
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
@@ -242,78 +263,114 @@ async function detectBarcodes() {
         }
       }
 
-      // Remember current barcodes for next comparison
+      // Remember current barcodes for next comparison and for drawing
       lastDetectedBarcodes = barcodes;
+      currentBarcodes = barcodes;
 
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Display FPS on bottom left
-      ctx.font = '16px Arial';
-      const fpsText = `barcode detection took ${deltaTimeMs.toFixed(0)}ms`;
-      const textMetrics = ctx.measureText(fpsText);
-      const textWidth = textMetrics.width;
-      const textHeight = 16; // Font size
-
-      // Draw background rectangle based on measured text dimensions
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-      ctx.clearRect(10, canvas.height - textHeight - 15, textWidth + 20, textHeight + 10);
-      ctx.fillRect(10, canvas.height - textHeight - 15, textWidth + 20, textHeight + 10);
-
-      // Draw text
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(fpsText, 20, canvas.height - 10);
-
-      if (barcodes.length > 0) {
-
-        // Draw center points and text
-        ctx.fillStyle = '#28a745';
-        ctx.font = '24px Arial';
-
-        barcodes.forEach(barcode => {
-          const {cornerPoints} = barcode;
-
-          // Add barcode to list if not already present
-          if (!scannedBarcodes.has(barcode.rawValue)) {
-            scannedBarcodes.add(barcode.rawValue);
-            addBarcodeToList(barcode.rawValue);
-          }
-
-          // Calculate center point from corner points
-          const center = calculateCenterPoint(cornerPoints);
-
-          // Draw center circle with radius 3
-          ctx.beginPath();
-          ctx.arc(center.x, center.y, 3, 0, 2 * Math.PI);
-          ctx.fill();
-
-          // Measure text width for proper centering
-          const textMetrics = ctx.measureText(barcode.rawValue);
-          const textWidth = textMetrics.width;
-          const textHeight = 24; // Font size
-          
-          // Draw black background with 70% opacity
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-          ctx.fillRect(
-              center.x - textWidth / 2 - 5,
-              center.y + 30 - textHeight,
-              textWidth + 10,
-              textHeight + 5
-          );
-          
-          // Draw barcode value text centered below the center point
-          ctx.fillStyle = '#28a745';
-          ctx.fillText(
-              barcode.rawValue,
-              center.x - textWidth / 2,
-              center.y + 30
-          );
-        });
-      }
+      // Add new barcodes to list
+      barcodes.forEach(barcode => {
+        if (!scannedBarcodes.has(barcode.rawValue)) {
+          scannedBarcodes.add(barcode.rawValue);
+          addBarcodeToList(barcode.rawValue);
+        }
+      });
     }
   } catch (error) {
     console.error('Barcode detection error:', error);
   }
+}
+
+// Separate drawing function that runs at high frequency
+function drawBarcodes() {
+  // Update display positions with tweening
+  updateDisplayPositions();
+  
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Display detection timing on bottom left
+  ctx.font = '16px Arial';
+  const fpsText = `barcode detection took ${deltaTimeMs.toFixed(0)}ms`;
+  const textMetrics = ctx.measureText(fpsText);
+  const textWidth = textMetrics.width;
+  const textHeight = 16; // Font size
+
+  // Draw background rectangle based on measured text dimensions
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+  ctx.fillRect(10, canvas.height - textHeight - 15, textWidth + 20, textHeight + 10);
+
+  // Draw text
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(fpsText, 20, canvas.height - 10);
+
+  if (displayBarcodes.size > 0) {
+    // Draw center points and text
+    ctx.fillStyle = '#28a745';
+    ctx.font = '24px Arial';
+
+    displayBarcodes.forEach((displayData, barcodeValue) => {
+      const { displayX, displayY } = displayData;
+
+      // Draw center circle with radius 3
+      ctx.beginPath();
+      ctx.arc(displayX, displayY, 3, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Measure text width for proper centering
+      const textMetrics = ctx.measureText(barcodeValue);
+      const textWidth = textMetrics.width;
+      const textHeight = 24; // Font size
+      
+      // Draw black background with 70% opacity
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(
+          displayX - textWidth / 2 - 5,
+          displayY + 30 - textHeight,
+          textWidth + 10,
+          textHeight + 5
+      );
+      
+      // Draw barcode value text centered below the center point
+      ctx.fillStyle = '#28a745';
+      ctx.fillText(
+          barcodeValue,
+          displayX - textWidth / 2,
+          displayY + 30
+      );
+    });
+  }
+}
+
+// Update display positions with 50% tweening
+function updateDisplayPositions() {
+  // Get current barcode values for cleanup
+  const currentBarcodeValues = new Set(currentBarcodes.map(b => b.rawValue));
+  
+  // Remove barcodes that are no longer detected
+  for (const [barcodeValue] of displayBarcodes) {
+    if (!currentBarcodeValues.has(barcodeValue)) {
+      displayBarcodes.delete(barcodeValue);
+    }
+  }
+  
+  // Update positions for current barcodes
+  currentBarcodes.forEach(barcode => {
+    const center = calculateCenterPoint(barcode.cornerPoints);
+    const barcodeValue = barcode.rawValue;
+    
+    if (displayBarcodes.has(barcodeValue)) {
+      // Tween existing position by 50%
+      const displayData = displayBarcodes.get(barcodeValue);
+      displayData.displayX += (center.x - displayData.displayX) * 0.2;
+      displayData.displayY += (center.y - displayData.displayY) * 0.2;
+    } else {
+      // New barcode - start at actual position
+      displayBarcodes.set(barcodeValue, {
+        displayX: center.x,
+        displayY: center.y
+      });
+    }
+  });
 }
 
 // Barcode list management functions
