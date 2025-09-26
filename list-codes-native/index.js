@@ -165,9 +165,17 @@ async function switchCamera() {
 
 let lastDetectionTime = 0;
 let isDetecting = false;
+let lastDetectedBarcodes = [];
+
+// Helper function to calculate center point from corner points
+function calculateCenterPoint(cornerPoints) {
+  const centerX = cornerPoints.reduce((sum, point) => sum + point.x, 0) / cornerPoints.length;
+  const centerY = cornerPoints.reduce((sum, point) => sum + point.y, 0) / cornerPoints.length;
+  return { x: centerX, y: centerY };
+}
 
 async function startContinuousDetection(currentTime) {
-  if (currentTime - lastDetectionTime >= 700 && !isDetecting) {
+  if (currentTime - lastDetectionTime >= 400 && !isDetecting) {
     isDetecting = true;
     detectBarcodes().finally(() => {
       isDetecting = false;
@@ -178,9 +186,58 @@ async function startContinuousDetection(currentTime) {
 }
 
 async function detectBarcodes() {
+  function areStableEnough(barcodes, previous) {
+    // Same barcodes detected, now check if center points are still within bounding boxes
+    let allBarcodesStable = true;
+
+    for (const currentBarcode of barcodes) {
+      // Find matching barcode from last detection
+      const lastBarcode = previous.find(b => b.rawValue === currentBarcode.rawValue);
+      if (!lastBarcode) {
+        allBarcodesStable = false;
+        break;
+      }
+
+      // Calculate current center point
+      const currentCenter = calculateCenterPoint(currentBarcode.cornerPoints);
+
+      // Calculate last bounding box
+      const lastMinX = Math.min(...lastBarcode.cornerPoints.map(p => p.x));
+      const lastMaxX = Math.max(...lastBarcode.cornerPoints.map(p => p.x));
+      const lastMinY = Math.min(...lastBarcode.cornerPoints.map(p => p.y));
+      const lastMaxY = Math.max(...lastBarcode.cornerPoints.map(p => p.y));
+
+      // Check if current center is still within last bounding box
+      if (currentCenter.x < lastMinX || currentCenter.x > lastMaxX ||
+          currentCenter.y < lastMinY || currentCenter.y > lastMaxY) {
+        allBarcodesStable = false;
+        break;
+      }
+    }
+    return allBarcodesStable;
+  }
+
+  function sameBarcodesDetected(currentBarcodeValues, lastBarcodeValues) {
+    return currentBarcodeValues.length === lastBarcodeValues.length &&
+        currentBarcodeValues.every((val, index) => val === lastBarcodeValues[index]);
+  }
+
   try {
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
       const barcodes = await barcodeDetector.detect(video);
+
+      // Check if barcodes are the same as last detection
+      const currentBarcodeValues = barcodes.map(b => b.rawValue).sort();
+      const lastBarcodeValues = lastDetectedBarcodes.map(b => b.rawValue).sort();
+      
+      if (sameBarcodesDetected(currentBarcodeValues, lastBarcodeValues)) {
+        if (areStableEnough(barcodes, lastDetectedBarcodes)) {
+          return;
+        }
+      }
+
+      // Remember current barcodes for next comparison
+      lastDetectedBarcodes = barcodes;
 
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -201,12 +258,11 @@ async function detectBarcodes() {
           }
 
           // Calculate center point from corner points
-          const centerX = cornerPoints.reduce((sum, point) => sum + point.x, 0) / cornerPoints.length;
-          const centerY = cornerPoints.reduce((sum, point) => sum + point.y, 0) / cornerPoints.length;
+          const center = calculateCenterPoint(cornerPoints);
 
           // Draw center circle with radius 3
           ctx.beginPath();
-          ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
+          ctx.arc(center.x, center.y, 3, 0, 2 * Math.PI);
           ctx.fill();
 
           // Measure text width for proper centering
@@ -217,8 +273,8 @@ async function detectBarcodes() {
           // Draw black background with 70% opacity
           ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
           ctx.fillRect(
-              centerX - textWidth / 2 - 5,
-              centerY + 30 - textHeight,
+              center.x - textWidth / 2 - 5,
+              center.y + 30 - textHeight,
               textWidth + 10,
               textHeight + 5
           );
@@ -227,8 +283,8 @@ async function detectBarcodes() {
           ctx.fillStyle = '#28a745';
           ctx.fillText(
               barcode.rawValue,
-              centerX - textWidth / 2,
-              centerY + 30
+              center.x - textWidth / 2,
+              center.y + 30
           );
         });
       }
