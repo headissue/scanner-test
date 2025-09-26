@@ -163,8 +163,17 @@ async function switchCamera() {
   }
 }
 
-async function startContinuousDetection() {
-  await detectBarcodes();
+let lastDetectionTime = 0;
+let isDetecting = false;
+
+async function startContinuousDetection(currentTime) {
+  if (currentTime - lastDetectionTime >= 700 && !isDetecting) {
+    isDetecting = true;
+    detectBarcodes().finally(() => {
+      isDetecting = false;
+    });
+    lastDetectionTime = currentTime;
+  }
   requestAnimationFrame(startContinuousDetection);
 }
 
@@ -178,9 +187,9 @@ async function detectBarcodes() {
 
       if (barcodes.length > 0) {
 
-        // Draw bounding boxes
-        ctx.strokeStyle = '#28a745';
-        ctx.lineWidth = 3;
+        // Draw center points and text
+        ctx.fillStyle = '#28a745';
+        ctx.font = '24px Arial';
 
         barcodes.forEach(barcode => {
           const {cornerPoints} = barcode;
@@ -191,22 +200,35 @@ async function detectBarcodes() {
             addBarcodeToList(barcode.rawValue);
           }
 
-          // Draw bounding box
-          ctx.beginPath();
-          ctx.moveTo(cornerPoints[0].x, cornerPoints[0].y);
-          cornerPoints.forEach(point => {
-            ctx.lineTo(point.x, point.y);
-          });
-          ctx.closePath();
-          ctx.stroke();
+          // Calculate center point from corner points
+          const centerX = cornerPoints.reduce((sum, point) => sum + point.x, 0) / cornerPoints.length;
+          const centerY = cornerPoints.reduce((sum, point) => sum + point.y, 0) / cornerPoints.length;
 
-          // Draw barcode value text
+          // Draw center circle with radius 3
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Measure text width for proper centering
+          const textMetrics = ctx.measureText(barcode.rawValue);
+          const textWidth = textMetrics.width;
+          const textHeight = 24; // Font size
+          
+          // Draw black background with 70% opacity
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(
+              centerX - textWidth / 2 - 5,
+              centerY + 30 - textHeight,
+              textWidth + 10,
+              textHeight + 5
+          );
+          
+          // Draw barcode value text centered below the center point
           ctx.fillStyle = '#28a745';
-          ctx.font = '24px Arial';
           ctx.fillText(
               barcode.rawValue,
-              cornerPoints[0].x,
-              cornerPoints[0].y - 10
+              centerX - textWidth / 2,
+              centerY + 30
           );
         });
       }
