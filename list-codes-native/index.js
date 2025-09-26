@@ -170,7 +170,6 @@ let lastDetectedBarcodes = [];
 let deltaTimeMs = 0;
 let currentBarcodes = []; // Store current barcodes for drawing
 let displayBarcodes = new Map(); // Store barcode positions for tweening
-let lastDrawTime = 0; // For drawing throttling
 
 // Helper function to calculate center point from corner points
 function calculateCenterPoint(cornerPoints) {
@@ -181,11 +180,8 @@ function calculateCenterPoint(cornerPoints) {
 
 // Separate drawing loop throttled to 40 FPS
 function startDrawingLoop() {
-  function draw(currentTime) {
-    if (currentTime - lastDrawTime >= 25) { // 40 FPS = 25ms intervals
-      drawBarcodes();
-      lastDrawTime = currentTime;
-    }
+  function draw() {
+    drawBarcodes();
     requestAnimationFrame(draw);
   }
   requestAnimationFrame(draw);
