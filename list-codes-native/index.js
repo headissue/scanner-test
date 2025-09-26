@@ -166,6 +166,7 @@ async function switchCamera() {
 let lastDetectionTime = 0;
 let isDetecting = false;
 let lastDetectedBarcodes = [];
+let deltaTimeMs = 0;
 
 // Helper function to calculate center point from corner points
 function calculateCenterPoint(cornerPoints) {
@@ -175,7 +176,7 @@ function calculateCenterPoint(cornerPoints) {
 }
 
 async function startContinuousDetection(currentTime) {
-  if (currentTime - lastDetectionTime >= 400 && !isDetecting) {
+  if (currentTime - lastDetectionTime >= 16 && !isDetecting) {
     isDetecting = true;
     detectBarcodes().finally(() => {
       isDetecting = false;
@@ -185,46 +186,51 @@ async function startContinuousDetection(currentTime) {
   requestAnimationFrame(startContinuousDetection);
 }
 
-async function detectBarcodes() {
-  function areStableEnough(barcodes, previous) {
-    // Same barcodes detected, now check if center points are still within bounding boxes
-    let allBarcodesStable = true;
+function areStableEnough(barcodes, previous) {
+  // Same barcodes detected, now check if center points are still within bounding boxes
+  let allBarcodesStable = true;
 
-    for (const currentBarcode of barcodes) {
-      // Find matching barcode from last detection
-      const lastBarcode = previous.find(b => b.rawValue === currentBarcode.rawValue);
-      if (!lastBarcode) {
-        allBarcodesStable = false;
-        break;
-      }
-
-      // Calculate current center point
-      const currentCenter = calculateCenterPoint(currentBarcode.cornerPoints);
-
-      // Calculate last bounding box
-      const lastMinX = Math.min(...lastBarcode.cornerPoints.map(p => p.x));
-      const lastMaxX = Math.max(...lastBarcode.cornerPoints.map(p => p.x));
-      const lastMinY = Math.min(...lastBarcode.cornerPoints.map(p => p.y));
-      const lastMaxY = Math.max(...lastBarcode.cornerPoints.map(p => p.y));
-
-      // Check if current center is still within last bounding box
-      if (currentCenter.x < lastMinX || currentCenter.x > lastMaxX ||
-          currentCenter.y < lastMinY || currentCenter.y > lastMaxY) {
-        allBarcodesStable = false;
-        break;
-      }
+  for (const currentBarcode of barcodes) {
+    // Find matching barcode from last detection
+    const lastBarcode = previous.find(b => b.rawValue === currentBarcode.rawValue);
+    if (!lastBarcode) {
+      allBarcodesStable = false;
+      break;
     }
-    return allBarcodesStable;
-  }
 
-  function sameBarcodesDetected(currentBarcodeValues, lastBarcodeValues) {
-    return currentBarcodeValues.length === lastBarcodeValues.length &&
-        currentBarcodeValues.every((val, index) => val === lastBarcodeValues[index]);
-  }
+    // Calculate current center point
+    const currentCenter = calculateCenterPoint(currentBarcode.cornerPoints);
 
+    // Calculate last bounding box
+    const lastMinX = Math.min(...lastBarcode.cornerPoints.map(p => p.x));
+    const lastMaxX = Math.max(...lastBarcode.cornerPoints.map(p => p.x));
+    const lastMinY = Math.min(...lastBarcode.cornerPoints.map(p => p.y));
+    const lastMaxY = Math.max(...lastBarcode.cornerPoints.map(p => p.y));
+
+    // Check if current center is still within last bounding box
+    if (currentCenter.x < lastMinX || currentCenter.x > lastMaxX ||
+        currentCenter.y < lastMinY || currentCenter.y > lastMaxY) {
+      allBarcodesStable = false;
+      break;
+    }
+  }
+  return allBarcodesStable;
+}
+
+function sameBarcodesDetected(currentBarcodeValues, lastBarcodeValues) {
+  return currentBarcodeValues.length === lastBarcodeValues.length &&
+      currentBarcodeValues.every((val, index) => val === lastBarcodeValues[index]);
+}
+
+
+async function detectBarcodes() {
   try {
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      const timeBeforeDetection = performance.now();
       const barcodes = await barcodeDetector.detect(video);
+      const timeAfterDetection = performance.now();
+      
+      deltaTimeMs = timeAfterDetection - timeBeforeDetection;
 
       // Check if barcodes are the same as last detection
       const currentBarcodeValues = barcodes.map(b => b.rawValue).sort();
@@ -241,6 +247,22 @@ async function detectBarcodes() {
 
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Display FPS on bottom left
+      ctx.font = '16px Arial';
+      const fpsText = `barcode detection took ${deltaTimeMs.toFixed(0)}ms`;
+      const textMetrics = ctx.measureText(fpsText);
+      const textWidth = textMetrics.width;
+      const textHeight = 16; // Font size
+
+      // Draw background rectangle based on measured text dimensions
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.clearRect(10, canvas.height - textHeight - 15, textWidth + 20, textHeight + 10);
+      ctx.fillRect(10, canvas.height - textHeight - 15, textWidth + 20, textHeight + 10);
+
+      // Draw text
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(fpsText, 20, canvas.height - 10);
 
       if (barcodes.length > 0) {
 
