@@ -3,13 +3,12 @@ const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const switchButton = document.querySelector('.js-switch-camera');
-let barcodeDetector;
+let barcodeWorker;
 
 // Camera switching variables
 let availableCameras = [];
 let currentCameraIndex = 0;
 let currentStream = null;
-const detectionIntervalms = 600;
 
 // Barcode list management
 const clearListButton = document.querySelector(".js-clear-list")
@@ -22,12 +21,20 @@ let scannedBarcodes = new Set();
 window.addEventListener('load', async function () {
   try {
 
-    // Check if BarcodeDetector is supported
-    if ('BarcodeDetector' in window) {
-      barcodeDetector = new BarcodeDetector();
-      console.log('BarcodeDetector initialized');
-    } else {
-      alert('BarcodeDetector API not supported in this browser')
+    // Initialize Web Worker for barcode detection
+    try {
+      barcodeWorker = new Worker('barcode-worker.js');
+      
+      // Set up worker message handler
+      barcodeWorker.addEventListener('message', handleWorkerMessage);
+      
+      // Initialize worker
+      barcodeWorker.postMessage({ type: 'init' });
+      
+      console.log('Barcode worker initialized');
+    } catch (error) {
+      console.error('Failed to initialize worker:', error);
+      alert('Web Worker initialization failed');
       return;
     }
 
@@ -165,7 +172,6 @@ async function switchCamera() {
   }
 }
 
-let lastDetectionTime = 0;
 let isDetecting = false;
 let lastDetectedBarcodes = [];
 let deltaTimeMs = 0;
@@ -179,6 +185,52 @@ function calculateCenterPoint(cornerPoints) {
   return { x: centerX, y: centerY };
 }
 
+// Handle messages from the worker
+function handleWorkerMessage(event) {
+  const { type, barcodes, deltaTimeMs, error } = event.data;
+
+  if (type === 'init-success') {
+    console.log('Worker BarcodeDetector ready');
+  } else if (type === 'init-error') {
+    console.error('Worker init error:', error);
+    alert('BarcodeDetector not available in Web Worker');
+  } else if (type === 'detect-result') {
+    processBarcodeResults(barcodes, deltaTimeMs);
+    isDetecting = false;
+  } else if (type === 'error') {
+    console.error('Worker detection error:', error);
+    alert('Worker detection error: ' + error);
+    isDetecting = false;
+  }
+}
+
+// Process barcode detection results
+function processBarcodeResults(barcodes, detectionTime) {
+  deltaTimeMs = detectionTime;
+
+  // Check if barcodes are the same as last detection
+  const currentBarcodeValues = barcodes.map(b => b.rawValue).sort();
+  const lastBarcodeValues = lastDetectedBarcodes.map(b => b.rawValue).sort();
+  
+  if (sameBarcodesDetected(currentBarcodeValues, lastBarcodeValues)) {
+    if (areStableEnough(barcodes, lastDetectedBarcodes)) {
+      return;
+    }
+  }
+
+  // Remember current barcodes for next comparison and for drawing
+  lastDetectedBarcodes = barcodes;
+  currentBarcodes = barcodes;
+
+  // Add new barcodes to list
+  barcodes.forEach(barcode => {
+    if (!scannedBarcodes.has(barcode.rawValue)) {
+      scannedBarcodes.add(barcode.rawValue);
+      addBarcodeToList(barcode.rawValue);
+    }
+  });
+}
+
 function startDrawingLoop() {
   function draw() {
     drawBarcodes();
@@ -187,16 +239,10 @@ function startDrawingLoop() {
   requestAnimationFrame(draw);
 }
 
-// Separate detection loop that's throttled
+// Separate detection loop - sends frames every animation frame
 function startDetectionLoop() {
-  function detect(currentTime) {
-    if (!isDetecting && currentTime - lastDetectionTime >= detectionIntervalms) {
-      isDetecting = true;
-      detectBarcodes().finally(() => {
-        isDetecting = false;
-      });
-      lastDetectionTime = currentTime;
-    }
+  function detect() {
+    detectBarcodes();
     requestAnimationFrame(detect);
   }
   requestAnimationFrame(detect);
@@ -239,40 +285,27 @@ function sameBarcodesDetected(currentBarcodeValues, lastBarcodeValues) {
 }
 
 
-// Barcode detection function (no drawing)
+// Barcode detection function - captures frame and sends to worker
 async function detectBarcodes() {
+  if (isDetecting) return; // Worker still processing previous frame
+  
   try {
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      const timeBeforeDetection = performance.now();
-      const barcodes = await barcodeDetector.detect(video);
-      const timeAfterDetection = performance.now();
+      isDetecting = true;
       
-      deltaTimeMs = timeAfterDetection - timeBeforeDetection;
-
-      // Check if barcodes are the same as last detection
-      const currentBarcodeValues = barcodes.map(b => b.rawValue).sort();
-      const lastBarcodeValues = lastDetectedBarcodes.map(b => b.rawValue).sort();
+      // Create ImageBitmap from video frame
+      const imageBitmap = await createImageBitmap(video);
       
-      if (sameBarcodesDetected(currentBarcodeValues, lastBarcodeValues)) {
-        if (areStableEnough(barcodes, lastDetectedBarcodes)) {
-          return;
-        }
-      }
-
-      // Remember current barcodes for next comparison and for drawing
-      lastDetectedBarcodes = barcodes;
-      currentBarcodes = barcodes;
-
-      // Add new barcodes to list
-      barcodes.forEach(barcode => {
-        if (!scannedBarcodes.has(barcode.rawValue)) {
-          scannedBarcodes.add(barcode.rawValue);
-          addBarcodeToList(barcode.rawValue);
-        }
-      });
+      // Send to worker for detection (transfer ownership)
+      // Worker will handle canvas operations with OffscreenCanvas
+      barcodeWorker.postMessage(
+        { type: 'detect', imageBitmap: imageBitmap },
+        [imageBitmap]
+      );
     }
   } catch (error) {
     console.error('Barcode detection error:', error);
+    isDetecting = false;
   }
 }
 
@@ -285,12 +318,11 @@ function drawBarcodes() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Display detection timing on bottom left
-  ctx.font = '16px Arial';
-  let s = `${detectionIntervalms}ms`;
-  const fpsText = `barcode detection, every ${s}, took ${deltaTimeMs.toFixed(0)}ms`;
+  ctx.font = '10px Arial';
+  const fpsText = `barcode detection, took ${deltaTimeMs.toFixed(0)}ms`;
   const textMetrics = ctx.measureText(fpsText);
   const textWidth = textMetrics.width;
-  const textHeight = 16; // Font size
+  const textHeight = 10; // Font size
 
   // Draw background rectangle based on measured text dimensions
   ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
