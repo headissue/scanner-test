@@ -13,7 +13,7 @@ self.addEventListener('message', async (event) => {
         barcodeDetector = new BarcodeDetector();
         
         // Create OffscreenCanvas for frame processing
-        offscreenCanvas = new OffscreenCanvas(1920, 1080);
+        offscreenCanvas = new OffscreenCanvas(1, 1);
         offscreenCtx = offscreenCanvas.getContext('2d');
         
         self.postMessage({ type: 'init-success' });

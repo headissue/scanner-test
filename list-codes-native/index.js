@@ -318,8 +318,8 @@ function drawBarcodes() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Display detection timing on bottom left
-  ctx.font = '10px Arial';
-  const fpsText = `barcode detection, took ${deltaTimeMs.toFixed(0)}ms`;
+  ctx.font = '12px Arial';
+  const fpsText = `barcode detection took ${deltaTimeMs.toFixed(0)}ms`;
   const textMetrics = ctx.measureText(fpsText);
   const textWidth = textMetrics.width;
   const textHeight = 10; // Font size
