@@ -179,7 +179,6 @@ function calculateCenterPoint(cornerPoints) {
   return { x: centerX, y: centerY };
 }
 
-// Separate drawing loop throttled to 40 FPS
 function startDrawingLoop() {
   function draw() {
     drawBarcodes();
@@ -191,7 +190,7 @@ function startDrawingLoop() {
 // Separate detection loop that's throttled
 function startDetectionLoop() {
   function detect(currentTime) {
-    if (currentTime - lastDetectionTime >= detectionIntervalms && !isDetecting) {
+    if (!isDetecting && currentTime - lastDetectionTime >= detectionIntervalms) {
       isDetecting = true;
       detectBarcodes().finally(() => {
         isDetecting = false;
