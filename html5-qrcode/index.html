@@ -3,48 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML5 QR Code Scanner</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        #reader {
-            width: 500px;
-            max-width: 100%;
-            border: 2px solid #ccc;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        h1 {
-            margin-top: 20px;
-            color: #333;
-        }
-        #scanned-result {
-            margin-top: 10px;
-            font-size: 1.2em;
-            color: #555;
-            background-color: #fff;
-            padding: 10px 15px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-    </style>
+    <title>Scanner Test - html5-qrcode</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
 </head>
 <body>
-<h1>HTML5 QR Code Scanner</h1>
-<div id="reader"></div>
-<div id="scanned-result"></div>
+<h1 hidden>Scanner</h1>
+<div class="camera-container" style="min-height: 10vh">
+    <div id="reader"></div>
+    <canvas id="canvas"></canvas>
+    <button class="btn switch-camera-btn js-switch-camera" hidden>📷</button>
+</div>
 
-<!-- Include the html5-qrcode library -->
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<section class="barcode-list js-manage-barcode-list">
+    <h2>Scanned Barcodes <span class="btn clear-btn js-clear-list" hidden="hidden">Clear List</span> <span
+            class="btn copy-btn js-copy-list" hidden="hidden">Copy List</span></h2>
+    <div class="js-barcode-list"></div>
+</section>
 
-<!-- Include your custom script -->
-<script src="index.js"></script>
+<template id="barcodeItemTemplate" class="js-barcode-item-template">
+    <div class="barcode-item">
+        <span class="js-barcode-value"></span>
+        <button class="btn delete-btn js-delete-btn">Delete</button>
+        <button class="btn copy-btn js-copy-btn">Copy</button>
+    </div>
+</template>
+
+<script type="module" src="index.js"></script>
 </body>
 </html>

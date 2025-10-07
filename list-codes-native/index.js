@@ -231,19 +231,10 @@ function processBarcodeResults(barcodes, detectionTime) {
   });
 }
 
-function startDrawingLoop() {
-  function draw() {
-    drawBarcodes();
-    requestAnimationFrame(draw);
-  }
-  requestAnimationFrame(draw);
-}
-
 // Separate detection loop - sends frames every animation frame
 function startDetectionLoop() {
   function detect() {
-    detectBarcodes();
-    requestAnimationFrame(detect);
+    detectBarcodes().then(r => requestAnimationFrame(detect));
   }
   requestAnimationFrame(detect);
 }
@@ -288,11 +279,10 @@ function sameBarcodesDetected(currentBarcodeValues, lastBarcodeValues) {
 // Barcode detection function - captures frame and sends to worker
 async function detectBarcodes() {
   if (isDetecting) return; // Worker still processing previous frame
-  
+  isDetecting = true;
+
   try {
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      isDetecting = true;
-      
       // Create ImageBitmap from video frame
       const imageBitmap = await createImageBitmap(video);
       
