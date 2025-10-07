@@ -239,6 +239,14 @@ function startDetectionLoop() {
   requestAnimationFrame(detect);
 }
 
+function startDrawingLoop() {
+  function draw() {
+    drawBarcodes();
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+}
+
 function areStableEnough(barcodes, previous) {
   // Same barcodes detected, now check if center points are still within bounding boxes
   let allBarcodesStable = true;
