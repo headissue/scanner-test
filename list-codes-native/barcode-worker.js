@@ -66,12 +66,11 @@ async function detect(imageBitmap) {
     const timeBeforeDetection = performance.now();
     
     // Step 1: Apply scale factor
-    let scale = .6;
+    let scale = 1.0;
     const scaledCanvas = createDownscaledCanvas(offscreenCanvas, scale);
     
-    // Step 2: Extract horizontal bar from center (100px height) of scaled canvas
-    let number = 0;
-    const barHeight = number || scaledCanvas.height;
+    // Step 2: Extract horizontal bar from center
+    const barHeight = 0 || scaledCanvas.height;
     const canvasWidth = scaledCanvas.width;
     const canvasHeight = scaledCanvas.height;
     const barY = Math.max(0, Math.floor((canvasHeight - barHeight) / 2));
