@@ -6,7 +6,7 @@ let offscreenCtx;
 function init() {
   try {
     if ('BarcodeDetector' in self) {
-      barcodeDetector = new BarcodeDetector({formats: ['ean_13']});
+      barcodeDetector = new BarcodeDetector();
 
       // Create OffscreenCanvas for frame processing
       offscreenCanvas = new OffscreenCanvas(1, 1);
