@@ -4,6 +4,12 @@ let cameras = [];
 let currentCameraIndex = 0;
 let isScanning = false;
 
+// Tweening state for smooth animations
+const tweenedPositions = new Map(); // Map<code, {x, y, targetX, targetY, format, lastSeen}>
+const TWEEN_SPEED = 0.1; // Lower = smoother but slower
+const CLEANUP_DELAY = 1000; // ms - remove from overlay if not seen for this long
+let animationFrameId = null;
+
 // DOM elements
 const switchCameraBtn = document.getElementById('switchCamera');
 const cameraNameDiv = document.getElementById('cameraName');
@@ -93,6 +99,9 @@ function initQuagga() {
         Quagga.start();
         isScanning = true;
         
+        // Start rendering loop
+        startRenderLoop();
+        
         // Show current camera name
         if (cameras[currentCameraIndex]) {
             showCameraName(cameras[currentCameraIndex].label);
@@ -100,86 +109,114 @@ function initQuagga() {
     });
 }
 
-// Draw overlays on canvas
+// Update target positions from detection results
 Quagga.onProcessed(function(result) {
-    const drawingCtx = Quagga.canvas.ctx.overlay;
-    const drawingCanvas = Quagga.canvas.dom.overlay;
-
     if (result) {
-        // Clear previous drawings
-        drawingCtx.clearRect(0, 0, 
-            parseInt(drawingCanvas.getAttribute("width")), 
-            parseInt(drawingCanvas.getAttribute("height"))
-        );
-        
         // Handle multiple code results (when multiple: true, result may be array)
         const resultItems = Array.isArray(result) ? result : [result];
-        
-        // Draw detection boxes and bounding boxes for each result
-        resultItems.forEach(function(item) {
-            // Draw detection boxes in green
-            if (item.boxes) {
-                item.boxes.filter(box => box !== item.box).forEach(box => {
-                    Quagga.ImageDebug.drawPath(box, { x: 0, y: 1 }, drawingCtx, { 
-                        color: "green", 
-                        lineWidth: 2 
-                    });
-                });
-            }
-
-            // Draw main bounding box in blue
-            if (item.box) {
-                Quagga.ImageDebug.drawPath(item.box, { x: 0, y: 1 }, drawingCtx, { 
-                    color: "#00F", 
-                    lineWidth: 2 
-                });
-            }
-        });
         
         resultItems.forEach(function(item) {
             const codeResult = item.codeResult || item;
             const line = item.line;
-            if (codeResult && codeResult.code) {
-                // Draw detection line in red
-                if (line) {
-                    Quagga.ImageDebug.drawPath(line, { x: 'x', y: 'y' }, drawingCtx, { 
-                        color: 'red', 
-                        lineWidth: 3 
+            if (codeResult && codeResult.code && line && line.length >= 2) {
+                const code = codeResult.code;
+                const format = codeResult.format;
+                
+                // Calculate target center position
+                const targetCenterX = (line[0].x + line[1].x) / 2;
+                const targetCenterY = (line[0].y + line[1].y) / 2;
+                
+                // Get or create tweened position
+                if (!tweenedPositions.has(code)) {
+                    tweenedPositions.set(code, {
+                        x: targetCenterX,
+                        y: targetCenterY,
+                        targetX: targetCenterX,
+                        targetY: targetCenterY,
+                        format: format,
+                        lastSeen: Date.now()
                     });
-                    
-                    // Draw center point indicator (green dot)
-                    if (line.length >= 2) {
-                        const centerX = (line[0].x + line[1].x) / 2;
-                        const centerY = (line[0].y + line[1].y) / 2;
-                        
-                        drawingCtx.beginPath();
-                        drawingCtx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
-                        drawingCtx.fillStyle = "lime";
-                        drawingCtx.fill();
-                    }
-                    
-                    // Display scanned value with semi-transparent background
-                    const code = codeResult.code;
-                    const format = codeResult.format;
-                    const textX = line[0].x;
-                    const textY = line[0].y - 10;
-                    
-                    drawingCtx.font = "bold 16px Arial";
-                    const text = `${code} (${format})`;
-                    const textWidth = drawingCtx.measureText(text).width;
-                    
-                    // Draw semi-transparent background
-                    drawingCtx.fillStyle = "rgba(0, 0, 0, 0.7)";
-                    drawingCtx.fillRect(textX - 5, textY - 20, textWidth + 10, 25);
-                    
-                    // Draw text
-                    drawingCtx.fillStyle = "white";
-                    drawingCtx.fillText(text, textX, textY);
+                } else {
+                    // Update existing position targets
+                    const pos = tweenedPositions.get(code);
+                    pos.targetX = targetCenterX;
+                    pos.targetY = targetCenterY;
+                    pos.format = format;
+                    pos.lastSeen = Date.now();
                 }
             }
         });
     }
 });
+
+// Render loop with requestAnimationFrame
+function startRenderLoop() {
+    function render() {
+        if (!isScanning) return;
+        
+        const drawingCtx = Quagga.canvas.ctx.overlay;
+        const drawingCanvas = Quagga.canvas.dom.overlay;
+        
+        if (drawingCtx && drawingCanvas) {
+            // Clear previous drawings
+            drawingCtx.clearRect(0, 0, 
+                parseInt(drawingCanvas.getAttribute("width")), 
+                parseInt(drawingCanvas.getAttribute("height"))
+            );
+            
+            const now = Date.now();
+            const toRemove = [];
+            
+            // Update and draw all tracked codes
+            tweenedPositions.forEach((pos, code) => {
+                // Check if barcode is stale (not seen recently)
+                if (now - pos.lastSeen > CLEANUP_DELAY) {
+                    toRemove.push(code);
+                    return;
+                }
+                // Lerp (linear interpolation) for smooth movement
+                pos.x += (pos.targetX - pos.x) * TWEEN_SPEED;
+                pos.y += (pos.targetY - pos.y) * TWEEN_SPEED;
+                
+                // Draw center point indicator (lime dot)
+                drawingCtx.beginPath();
+                drawingCtx.arc(pos.x, pos.y, 5, 0, 2 * Math.PI);
+                drawingCtx.fillStyle = "lime";
+                drawingCtx.fill();
+                
+                // Display scanned value with semi-transparent background
+                const textX = pos.x;
+                const textY = pos.y - 15;
+                
+                drawingCtx.font = "bold 16px Arial";
+                const text = `${code} (${pos.format})`;
+                const textWidth = drawingCtx.measureText(text).width;
+                
+                // Draw semi-transparent background
+                drawingCtx.fillStyle = "rgba(0, 0, 0, 0.7)";
+                drawingCtx.fillRect(textX - textWidth/2 - 5, textY - 20, textWidth + 10, 25);
+                
+                // Draw text (centered above point)
+                drawingCtx.fillStyle = "white";
+                drawingCtx.fillText(text, textX - textWidth/2, textY);
+            });
+            
+            // Clean up stale barcodes
+            toRemove.forEach(code => tweenedPositions.delete(code));
+        }
+        
+        animationFrameId = requestAnimationFrame(render);
+    }
+    
+    render();
+}
+
+function stopRenderLoop() {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+}
 
 // Handle barcode detection
 Quagga.onDetected(function(result) {
@@ -242,6 +279,7 @@ async function copyToClipboard(text) {
 // Delete barcode from list
 function deleteBarcodeFromList(code, listItem) {
     scannedCodes.delete(code);
+    tweenedPositions.delete(code); // Clean up tweened position
     listItem.remove();
     updateListActions();
 }
@@ -256,6 +294,7 @@ function updateListActions() {
 // Clear all barcodes
 clearListBtn.addEventListener('click', () => {
     scannedCodes.clear();
+    tweenedPositions.clear(); // Clear tweened positions
     barcodeList.innerHTML = '';
     updateListActions();
 });
@@ -275,6 +314,7 @@ switchCameraBtn.addEventListener('click', async () => {
     
     // Stop current scanner
     if (isScanning) {
+        stopRenderLoop();
         Quagga.stop();
         isScanning = false;
     }
