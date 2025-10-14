@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuaggaJS Barcode Scanner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="camera-container">
+        <button class="switch-camera-btn btn" id="switchCamera">📷</button>
+        <div class="camera-name" id="cameraName"></div>
+        <div id="scanner" class="viewport"></div>
+    </div>
+
+    <div class="container">
+        <div class="barcode-list">
+            <h2>Scanned Barcodes</h2>
+            <div class="list-actions">
+                <button class="btn" id="clearList">Clear List</button>
+                <button class="btn" id="copyAllList">Copy All</button>
+            </div>
+            <ul id="barcodeList"></ul>
+        </div>
+    </div>
+
+    <template id="barcode-item-template">
+        <li class="barcode-item">
+            <div class="barcode-content">
+                <span class="barcode-code"></span>
+                <span class="barcode-format"></span>
+            </div>
+            <div class="barcode-actions">
+                <button class="btn btn-small copy-btn">Copy</button>
+                <button class="btn btn-small delete-btn">Delete</button>
+            </div>
+        </li>
+    </template>
+
+    <script src="quagga.min.js-0.12.1.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>
