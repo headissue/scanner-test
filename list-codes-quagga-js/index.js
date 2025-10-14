@@ -71,10 +71,11 @@ function initQuagga() {
                 "i2of5_reader",
                 "2of5_reader",
                 "code_93_reader"
-            ]
+            ],
+            multiple: true
+
         },
         locate: true,
-        multiple: true
     };
 
     // Add camera constraint if available
@@ -111,40 +112,45 @@ Quagga.onProcessed(function(result) {
             parseInt(drawingCanvas.getAttribute("height"))
         );
         
-        // Draw detection boxes in green
-        if (result.boxes) {
-            result.boxes.filter(box => box !== result.box).forEach(box => {
-                Quagga.ImageDebug.drawPath(box, { x: 0, y: 1 }, drawingCtx, { 
-                    color: "green", 
+        // Handle multiple code results (when multiple: true, result may be array)
+        const resultItems = Array.isArray(result) ? result : [result];
+        
+        // Draw detection boxes and bounding boxes for each result
+        resultItems.forEach(function(item) {
+            // Draw detection boxes in green
+            if (item.boxes) {
+                item.boxes.filter(box => box !== item.box).forEach(box => {
+                    Quagga.ImageDebug.drawPath(box, { x: 0, y: 1 }, drawingCtx, { 
+                        color: "green", 
+                        lineWidth: 2 
+                    });
+                });
+            }
+
+            // Draw main bounding box in blue
+            if (item.box) {
+                Quagga.ImageDebug.drawPath(item.box, { x: 0, y: 1 }, drawingCtx, { 
+                    color: "#00F", 
                     lineWidth: 2 
                 });
-            });
-        }
-
-        // Draw main bounding box in blue
-        if (result.box) {
-            Quagga.ImageDebug.drawPath(result.box, { x: 0, y: 1 }, drawingCtx, { 
-                color: "#00F", 
-                lineWidth: 2 
-            });
-        }
-
-        // Handle multiple code results
-        const codeResults = result.codeResult ? [result.codeResult] : (result.codeResults || []);
+            }
+        });
         
-        codeResults.forEach(function(codeResult) {
+        resultItems.forEach(function(item) {
+            const codeResult = item.codeResult || item;
+            const line = item.line;
             if (codeResult && codeResult.code) {
                 // Draw detection line in red
-                if (result.line) {
-                    Quagga.ImageDebug.drawPath(result.line, { x: 'x', y: 'y' }, drawingCtx, { 
+                if (line) {
+                    Quagga.ImageDebug.drawPath(line, { x: 'x', y: 'y' }, drawingCtx, { 
                         color: 'red', 
                         lineWidth: 3 
                     });
                     
                     // Draw center point indicator (green dot)
-                    if (result.line.length >= 2) {
-                        const centerX = (result.line[0].x + result.line[1].x) / 2;
-                        const centerY = (result.line[0].y + result.line[1].y) / 2;
+                    if (line.length >= 2) {
+                        const centerX = (line[0].x + line[1].x) / 2;
+                        const centerY = (line[0].y + line[1].y) / 2;
                         
                         drawingCtx.beginPath();
                         drawingCtx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
@@ -155,8 +161,8 @@ Quagga.onProcessed(function(result) {
                     // Display scanned value with semi-transparent background
                     const code = codeResult.code;
                     const format = codeResult.format;
-                    const textX = result.line[0].x;
-                    const textY = result.line[0].y - 10;
+                    const textX = line[0].x;
+                    const textY = line[0].y - 10;
                     
                     drawingCtx.font = "bold 16px Arial";
                     const text = `${code} (${format})`;
@@ -177,12 +183,13 @@ Quagga.onProcessed(function(result) {
 
 // Handle barcode detection
 Quagga.onDetected(function(result) {
-    // Handle both single and multiple results
-    const codeResults = result.codeResult ? [result.codeResult] : (result.codeResults || []);
-    
     let newCodeDetected = false;
     
-    codeResults.forEach(function(codeResult) {
+    // Handle multiple results (when multiple: true)
+    const codeResults = Array.isArray(result) ? result : [result];
+    
+    codeResults.forEach(function(item) {
+        const codeResult = item.codeResult || item;
         if (codeResult && codeResult.code) {
             const code = codeResult.code;
             const format = codeResult.format;
