@@ -1,0 +1,57 @@
+body {
+    margin: 0 auto;
+    background: black;
+    color: white;
+}
+
+.camera-container {
+    position: relative;
+    width: 100%;
+}
+
+.camera-container video {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.camera-container canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 999;
+    width: 100%;
+    height: auto;
+}
+
+.switch-camera-btn {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 999;
+    margin: 10px;
+}
+
+
+.btn {
+    color: white;
+    border-radius: 10px;
+    background: #00000080;
+    font-weight: bold;
+    border: 2px solid #FFFFFF80;
+    padding: 4px 8px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.next-scan-btn {
+    width: 200px;
+    border-radius: 10px;
+    background: #00000080;
+    margin: 20px;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+}
