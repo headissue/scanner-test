@@ -18,15 +18,9 @@ async function enumerateCameras() {
         const devices = await navigator.mediaDevices.enumerateDevices();
         cameras = devices.filter(device => device.kind === 'videoinput');
         
-        // Find rear camera as default
-        const rearCameraIndex = cameras.findIndex(camera => 
-            camera.label.toLowerCase().includes('back') || 
-            camera.label.toLowerCase().includes('rear') ||
-            camera.label.toLowerCase().includes('environment')
-        );
-        
-        if (rearCameraIndex !== -1) {
-            currentCameraIndex = rearCameraIndex;
+        // Use last camera as default
+        if (cameras.length > 0) {
+            currentCameraIndex = cameras.length - 1;
         }
         
         return cameras;
@@ -79,7 +73,8 @@ function initQuagga() {
                 "code_93_reader"
             ]
         },
-        locate: true
+        locate: true,
+        multiple: true
     };
 
     // Add camera constraint if available
@@ -111,13 +106,13 @@ Quagga.onProcessed(function(result) {
 
     if (result) {
         // Clear previous drawings
+        drawingCtx.clearRect(0, 0, 
+            parseInt(drawingCanvas.getAttribute("width")), 
+            parseInt(drawingCanvas.getAttribute("height"))
+        );
+        
+        // Draw detection boxes in green
         if (result.boxes) {
-            drawingCtx.clearRect(0, 0, 
-                parseInt(drawingCanvas.getAttribute("width")), 
-                parseInt(drawingCanvas.getAttribute("height"))
-            );
-            
-            // Draw detection boxes in green
             result.boxes.filter(box => box !== result.box).forEach(box => {
                 Quagga.ImageDebug.drawPath(box, { x: 0, y: 1 }, drawingCtx, { 
                     color: "green", 
@@ -134,59 +129,76 @@ Quagga.onProcessed(function(result) {
             });
         }
 
-        // Draw detection line in red and display code
-        if (result.codeResult && result.codeResult.code) {
-            Quagga.ImageDebug.drawPath(result.line, { x: 'x', y: 'y' }, drawingCtx, { 
-                color: 'red', 
-                lineWidth: 3 
-            });
-            
-            // Draw center point indicator (green dot)
-            if (result.line && result.line.length >= 2) {
-                const centerX = (result.line[0].x + result.line[1].x) / 2;
-                const centerY = (result.line[0].y + result.line[1].y) / 2;
-                
-                drawingCtx.beginPath();
-                drawingCtx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
-                drawingCtx.fillStyle = "lime";
-                drawingCtx.fill();
+        // Handle multiple code results
+        const codeResults = result.codeResult ? [result.codeResult] : (result.codeResults || []);
+        
+        codeResults.forEach(function(codeResult) {
+            if (codeResult && codeResult.code) {
+                // Draw detection line in red
+                if (result.line) {
+                    Quagga.ImageDebug.drawPath(result.line, { x: 'x', y: 'y' }, drawingCtx, { 
+                        color: 'red', 
+                        lineWidth: 3 
+                    });
+                    
+                    // Draw center point indicator (green dot)
+                    if (result.line.length >= 2) {
+                        const centerX = (result.line[0].x + result.line[1].x) / 2;
+                        const centerY = (result.line[0].y + result.line[1].y) / 2;
+                        
+                        drawingCtx.beginPath();
+                        drawingCtx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+                        drawingCtx.fillStyle = "lime";
+                        drawingCtx.fill();
+                    }
+                    
+                    // Display scanned value with semi-transparent background
+                    const code = codeResult.code;
+                    const format = codeResult.format;
+                    const textX = result.line[0].x;
+                    const textY = result.line[0].y - 10;
+                    
+                    drawingCtx.font = "bold 16px Arial";
+                    const text = `${code} (${format})`;
+                    const textWidth = drawingCtx.measureText(text).width;
+                    
+                    // Draw semi-transparent background
+                    drawingCtx.fillStyle = "rgba(0, 0, 0, 0.7)";
+                    drawingCtx.fillRect(textX - 5, textY - 20, textWidth + 10, 25);
+                    
+                    // Draw text
+                    drawingCtx.fillStyle = "white";
+                    drawingCtx.fillText(text, textX, textY);
+                }
             }
-            
-            // Display scanned value with semi-transparent background
-            const code = result.codeResult.code;
-            const format = result.codeResult.format;
-            const textX = result.line[0].x;
-            const textY = result.line[0].y - 10;
-            
-            drawingCtx.font = "bold 16px Arial";
-            const text = `${code} (${format})`;
-            const textWidth = drawingCtx.measureText(text).width;
-            
-            // Draw semi-transparent background
-            drawingCtx.fillStyle = "rgba(0, 0, 0, 0.7)";
-            drawingCtx.fillRect(textX - 5, textY - 20, textWidth + 10, 25);
-            
-            // Draw text
-            drawingCtx.fillStyle = "white";
-            drawingCtx.fillText(text, textX, textY);
-        }
+        });
     }
 });
 
 // Handle barcode detection
 Quagga.onDetected(function(result) {
-    const code = result.codeResult.code;
-    const format = result.codeResult.format;
+    // Handle both single and multiple results
+    const codeResults = result.codeResult ? [result.codeResult] : (result.codeResults || []);
     
-    // Add to list if not already present
-    if (!scannedCodes.has(code)) {
-        scannedCodes.add(code);
-        addBarcodeToList(code, format);
-        
-        // Vibrate if available (mobile)
-        if (navigator.vibrate) {
-            navigator.vibrate(10);
+    let newCodeDetected = false;
+    
+    codeResults.forEach(function(codeResult) {
+        if (codeResult && codeResult.code) {
+            const code = codeResult.code;
+            const format = codeResult.format;
+            
+            // Add to list if not already present
+            if (!scannedCodes.has(code)) {
+                scannedCodes.add(code);
+                addBarcodeToList(code, format);
+                newCodeDetected = true;
+            }
         }
+    });
+    
+    // Vibrate if available and new code was detected (mobile)
+    if (newCodeDetected && navigator.vibrate) {
+        navigator.vibrate(10);
     }
 });
 
